@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* 디자인 시안 v1.0 색상 토큰 (계획서 1.3) */
+@theme {
+  --color-navy: #153f56;
+  --color-navy-deep: #0f2f41;
+  --color-brick: #c94f32;
+  --color-brick-dark: #a93f26;
+  --color-cream: #f5f1e8;
+  --color-cream-dark: #ebe4d4;
+  --color-status-green: #34725e;
+  --color-ink: #1f2933;
+  --color-muted: #5b6770;
+  --color-line: #d9d2c3;
+  --color-danger: #b42318;
+  --color-warning: #8a5a00;
+
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", serif;
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: #fbf9f4;
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-brick);
+    outline-offset: 2px;
+  }
+}
+
+/* 공통 컴포넌트 유틸리티 */
+@utility input {
+  @apply w-full rounded border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 disabled:cursor-not-allowed disabled:bg-cream-dark/60;
+  &[aria-invalid="true"] {
+    @apply border-danger;
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility btn-primary {
+  @apply btn bg-brick text-white hover:bg-brick-dark;
+}
+
+@utility btn-secondary {
+  @apply btn border border-navy text-navy hover:bg-navy hover:text-white;
+}
+
+@utility btn-ghost {
+  @apply btn text-navy hover:bg-cream;
+}
+
+@utility badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
