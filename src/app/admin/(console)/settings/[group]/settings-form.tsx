@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { SettingFieldView } from "@/server/settings/view";
 import type { SettingsFormState } from "./actions";
+import { TiersInput } from "./tiers-input";
 
 type Action = (prev: SettingsFormState, formData: FormData) => Promise<SettingsFormState>;
 
@@ -140,6 +141,11 @@ function FieldRow({ field, error, initial }: { field: SettingFieldView; error?: 
               {r}
             </span>
           ))}
+          {field.requiredBeforeOpen && (
+            <span className="badge bg-brick/10 text-brick" title="오픈 전에 기념관이 확정해야 하는 값">
+              오픈 전 필수
+            </span>
+          )}
           {field.source === "default" && <span className="badge bg-cream-dark text-muted">기본값</span>}
         </div>
         {field.description && (
@@ -249,5 +255,15 @@ function FieldInput({
       );
     case "list":
       return <input {...common} placeholder={input.placeholder} defaultValue={initial} className="input" />;
+    case "tiers":
+      return (
+        <TiersInput
+          name={common.name}
+          initial={initial}
+          disabled={common.disabled}
+          describedBy={common["aria-describedby"]}
+          labelledBy={`${id}-label`}
+        />
+      );
   }
 }

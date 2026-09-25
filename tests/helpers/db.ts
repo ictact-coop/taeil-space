@@ -35,3 +35,39 @@ export async function createTestAdmin(
     .returning();
   return user!;
 }
+
+export async function createTestSpace(db: Db, overrides: Partial<typeof import("@/server/db/schema").spaces.$inferInsert> = {}) {
+  const { spaces } = await import("@/server/db/schema");
+  counter += 1;
+  const [space] = await db
+    .insert(spaces)
+    .values({ code: `space${counter}`, name: `공간${counter}`, capacity: 20, leadDays: 14, ...overrides })
+    .returning();
+  return space!;
+}
+
+export async function createTestApplication(
+  db: Db,
+  params: { spaceId: string; startsAt: Date; endsAt: Date; status?: (typeof import("@/server/db/schema").applicationStatus.enumValues)[number] },
+) {
+  const { applications } = await import("@/server/db/schema");
+  counter += 1;
+  const [app] = await db
+    .insert(applications)
+    .values({
+      applicationNo: `R-TEST-${counter}`,
+      status: params.status ?? "confirmed",
+      spaceId: params.spaceId,
+      orgName: "테스트단체",
+      contactName: "담당자",
+      contactPhone: "010-0000-0000",
+      contactEmail: "t@example.org",
+      eventTitle: "행사",
+      eventPurpose: "목적",
+      expectedHeadcount: 10,
+      startsAt: params.startsAt,
+      endsAt: params.endsAt,
+    })
+    .returning();
+  return app!;
+}

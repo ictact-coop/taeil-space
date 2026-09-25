@@ -7,6 +7,7 @@ import {
   list,
   monthDay,
   percent,
+  refundTiers,
   text,
   time,
   type AnySettingDefinition,
@@ -94,6 +95,42 @@ export const settingDefinitions = {
     defaultValue: "3~7일",
     maxLength: 30,
     required: true,
+  }),
+
+  // ─── C. 교육실 접수기간 ───
+  "schedule.bookingWindowMode": enumeration({
+    group: "schedule",
+    label: "접수기간 공개 방식",
+    description: "신청기한 대신 접수기간으로 받는 공간(교육실)에 적용합니다.",
+    refs: ["P-08", "AT-04"],
+    requiredBeforeOpen: true,
+    editableBy: ["rental"],
+    defaultValue: "manual",
+    options: [
+      { value: "manual", label: "담당자가 직접 공개" },
+      { value: "auto", label: "자동(오늘부터 N일)" },
+    ],
+  }),
+  "schedule.bookingWindowAutoDays": integer({
+    group: "schedule",
+    label: "자동 공개 기간",
+    description: "자동 방식일 때 오늘부터 며칠 뒤까지 신청을 받을지 정합니다.",
+    refs: ["P-08"],
+    editableBy: ["rental"],
+    defaultValue: 14,
+    min: 1,
+    max: 90,
+    unit: "일",
+  }),
+  "schedule.bookingWindowExtendDays": integer({
+    group: "schedule",
+    label: "연장 버튼 단위",
+    description: "접수기간 화면의 연장 버튼을 누를 때 늘어나는 일수입니다.",
+    editableBy: ["rental"],
+    defaultValue: 7,
+    min: 1,
+    max: 30,
+    unit: "일",
   }),
 
   // ─── D. 신청 규칙 ───
@@ -194,6 +231,7 @@ export const settingDefinitions = {
 
   // ─── F. 결제·환불 ───
   "payment.method": enumeration({
+    requiredBeforeOpen: true,
     group: "payment",
     label: "결제 방식",
     description: "PG 계약 전에는 계좌이체로 운영하고, 계약 후 PG로 바꿉니다.",
@@ -205,6 +243,7 @@ export const settingDefinitions = {
     ],
   }),
   "payment.pgHoldMinutes": integer({
+    requiredBeforeOpen: true,
     group: "payment",
     label: "결제 유효시간(PG)",
     description: "이 시간 안에 결제하지 않으면 신청을 취소하고 일정을 다시 엽니다.",
@@ -215,6 +254,7 @@ export const settingDefinitions = {
     unit: "분",
   }),
   "payment.bankTransferHoldHours": integer({
+    requiredBeforeOpen: true,
     group: "payment",
     label: "입금 기한(계좌이체)",
     refs: ["P-05"],
@@ -232,11 +272,20 @@ export const settingDefinitions = {
     maxLength: 300,
   }),
   "payment.withdrawRefundPercent": percent({
+    requiredBeforeOpen: true,
     group: "payment",
     label: "승인 전 철회 환불률",
     description: "결제 후 승인 전에 신청자가 철회할 때 돌려주는 비율입니다.",
     refs: ["P-15"],
     defaultValue: 100,
+  }),
+  "payment.refundTiers": refundTiers({
+    group: "payment",
+    label: "확정 후 취소 시점별 환불률",
+    description: "예약확정 후 신청자가 취소할 때, 이용일까지 남은 기간에 따라 돌려주는 비율입니다. 어느 구간에도 들지 않으면 환불하지 않습니다. 이용자가 결제 전에 동의하는 규정입니다.",
+    refs: ["P-06", "AT-09"],
+    requiredBeforeOpen: true,
+    defaultValue: [],
   }),
   "payment.postConfirmRefundMode": enumeration({
     group: "payment",

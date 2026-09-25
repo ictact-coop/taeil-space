@@ -6,6 +6,7 @@ import {
   type SettingValue,
   type SettingValues,
 } from "./definitions";
+import { sameJson } from "@/lib/stable-json";
 
 /** policy_values 한 행 */
 export interface PolicyRow {
@@ -99,13 +100,13 @@ export type HistoryStatus =
 
 /**
  * 변경 이력 각 행의 상태를 판단한다. rows는 한 설정 키의 행들이다.
- * sameValue: 두 값이 같은지 비교하는 함수 (기본은 JSON 비교)
+ * sameValue: 두 값이 같은지 비교하는 함수 (기본은 키 순서와 무관한 JSON 비교)
  */
 export function classifyHistory(
   rows: readonly PolicyRow[],
   now: Date,
   defaultValue: unknown,
-  sameValue: (a: unknown, b: unknown) => boolean = (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  sameValue: (a: unknown, b: unknown) => boolean = sameJson,
 ): Map<number, HistoryStatus> {
   const result = new Map<number, HistoryStatus>();
   const active = pickEffectiveRow(rows, now);

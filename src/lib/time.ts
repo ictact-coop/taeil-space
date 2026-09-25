@@ -44,3 +44,13 @@ export function parseKstLocalInput(value: string): Date | null {
   const date = new Date(`${value}:00${KST_OFFSET}`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+/** 해당 시각의 KST 날짜 (YYYY-MM-DD) */
+export function kstDateOf(date: Date): string {
+  return toKstLocalInput(date).slice(0, 10);
+}
+
+/** KST 날짜의 시작 시각(00:00 KST) */
+export function kstStartOfDay(date: string): Date {
+  return new Date(`${date}T00:00:00+09:00`);
+}

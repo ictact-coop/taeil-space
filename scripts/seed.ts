@@ -43,6 +43,7 @@ const seedSpaces: (typeof spaces.$inferInsert)[] = [
     description: "83.6㎡",
     equipment: ["조명", "무선 마이크 6", "유선 마이크 6", "빔프로젝터", "현수막 500×90cm"],
     notice: "별도 공연장 이용 규정 동의가 필요합니다. 이용 전·후 대표번호로 연락해 주세요.",
+    extraConsents: ["hallRules"],
     sortOrder: 5,
   },
 ];

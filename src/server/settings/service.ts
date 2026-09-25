@@ -10,14 +10,12 @@ import {
 } from "@/domain/settings/definitions";
 import { pickEffectiveRow, resolveAll, resolveSetting, type PolicyRow } from "@/domain/settings/resolve";
 import { writeAudit } from "@/server/audit/log";
+import type { Actor } from "@/server/actor";
+import { sameJson } from "@/lib/stable-json";
 import { adminUsers, policyValues } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
-export interface SettingsActor {
-  id: string;
-  role: AdminRoleName;
-  ip?: string | null;
-}
+export type SettingsActor = Actor;
 
 /** 지금보다 이만큼 과거까지는 "지금 적용"으로 받아준다(폼 작성 시간 감안). */
 const PAST_TOLERANCE_MS = 10 * 60 * 1000;
@@ -194,7 +192,7 @@ export async function saveSettingChanges(
     await lockPolicies(tx);
     const rows = await loadPolicyRows(tx);
     const current = resolveAll(rows, effectiveFrom).values as Record<SettingKey, unknown>;
-    const changes = parsed.filter((c) => JSON.stringify(current[c.key]) !== JSON.stringify(c.value));
+    const changes = parsed.filter((c) => !sameJson(current[c.key], c.value));
     if (changes.length === 0) {
       return { ok: false, formError: "바뀐 값이 없습니다.", fieldErrors: {} } satisfies SaveResult;
     }
@@ -243,7 +241,7 @@ export async function revertSetting(
       } satisfies SaveResult;
     }
     const current = resolveSetting(key, rows, now);
-    if (JSON.stringify(current.value) === JSON.stringify(parsed.data)) {
+    if (sameJson(current.value, parsed.data)) {
       return { ok: false, formError: "이미 이 값이 적용되어 있습니다.", fieldErrors: {} } satisfies SaveResult;
     }
     const changes = [{ key, value: parsed.data }];
@@ -333,5 +331,36 @@ export async function getSettingHistory(db: DbOrTx, key: SettingKey): Promise<Se
   return rows.map((r) => {
     const parsed = def.schema.safeParse(r.value);
     return { ...r, displayValue: parsed.success ? def.format(parsed.data) : `(현재 정의와 맞지 않는 값: ${JSON.stringify(r.value)})` };
+  });
+}
+
+/**
+ * 현재 값(기본값 포함)을 기념관이 확정했다고 기록한다. 값은 그대로 두고 저장된 버전을 하나 추가한다.
+ * 오픈 전 필수 항목의 "기본값 사용 중" 상태를 해소할 때 쓴다.
+ */
+export async function confirmSettings(
+  db: Db,
+  params: { actor: SettingsActor; keys: string[]; reason: string; now?: Date },
+): Promise<SaveResult> {
+  const now = params.now ?? new Date();
+  const reason = params.reason.trim();
+  if (reason.length < MIN_REASON_LENGTH) return { ok: false, formError: "확정 사유를 입력하세요.", fieldErrors: {} };
+  const keys = params.keys.filter(isSettingKey);
+  if (keys.length === 0) return { ok: false, formError: "확정할 항목이 없습니다.", fieldErrors: {} };
+  for (const key of keys) {
+    if (!canEditSetting(params.actor.role, key)) {
+      return { ok: false, formError: `${getDefinition(key).label}: 수정 권한이 없습니다.`, fieldErrors: {} };
+    }
+  }
+  return db.transaction(async (tx) => {
+    await lockPolicies(tx);
+    const rows = await loadPolicyRows(tx);
+    const changes = keys
+      .map((key) => resolveSetting(key, rows, now))
+      .filter((r) => r.source === "default")
+      .map((r) => ({ key: r.key, value: r.value }));
+    if (changes.length === 0) return { ok: false, formError: "이미 확정된 항목입니다.", fieldErrors: {} } satisfies SaveResult;
+    await applyChanges(tx, { actor: params.actor, changes, effectiveFrom: now, reason, action: "setting.confirm", rows });
+    return { ok: true, savedKeys: changes.map((c) => c.key) } satisfies SaveResult;
   });
 }

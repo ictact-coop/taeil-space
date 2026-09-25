@@ -17,6 +17,7 @@ export interface SettingFieldView {
   source: "default" | "stored";
   invalidStored: boolean;
   editable: boolean;
+  requiredBeforeOpen: boolean;
   since: string | null;
   upcoming: { id: number; displayValue: string; effectiveFrom: string }[];
 }
@@ -44,6 +45,7 @@ export function buildFieldViews(
         source: resolved.source,
         invalidStored: resolved.invalidStored,
         editable: canEditSetting(role, key),
+        requiredBeforeOpen: def.requiredBeforeOpen,
         since: resolved.row ? formatKst(resolved.row.effectiveFrom) : null,
         upcoming: upcomingRows(rows, key, now, def.defaultValue).map((row) => {
           const parsed = def.schema.safeParse(row.value);

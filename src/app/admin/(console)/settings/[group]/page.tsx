@@ -27,7 +27,7 @@ export default async function SettingsGroupPage({ params }: { params: Promise<{ 
   const fields = buildFieldViews(group, await loadPolicyRows(db), admin.role, now);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <nav aria-label="위치" className="mb-2 text-sm text-muted">
         <Link href="/admin/settings" className="underline">
           정책 설정

@@ -15,6 +15,20 @@
       "when": 1790311515050,
       "tag": "0001_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790313017694,
+      "tag": "0002_stage1_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790313018444,
+      "tag": "0003_fee_schedules_append_only",
+      "breakpoints": true
     }
   ]
 }

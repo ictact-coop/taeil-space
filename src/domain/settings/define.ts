@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { describeRefundTiers, refundTiersSchema, type RefundTier } from "@/domain/refund/tiers";
 
 /**
  * 설정 정의 빌더 (계획서 2.7).
@@ -8,6 +9,7 @@ import { z } from "zod";
 
 export const settingGroups = {
   operation: { label: "운영 기본", description: "유료 전환일, 대관 가능시간, 동절기 운영" },
+  schedule: { label: "교육실 접수기간", description: "접수기간 공개 방식(수동·자동)과 연장 단위" },
   application: { label: "신청 규칙", description: "단체 판별, 신청 제한, 입력·첨부 조건, 보완" },
   payment: { label: "결제·환불", description: "결제 방식, 결제 유효시간, 환불 처리" },
   notification: { label: "알림", description: "사건별 발송 채널과 시점" },
@@ -26,7 +28,8 @@ export type SettingInput =
   | { kind: "date" }
   | { kind: "monthDay" }
   | { kind: "text"; multiline: boolean; maxLength: number }
-  | { kind: "list"; placeholder: string };
+  | { kind: "list"; placeholder: string }
+  | { kind: "tiers" };
 
 export interface SettingDefinition<T> {
   group: SettingGroup;
@@ -39,6 +42,8 @@ export interface SettingDefinition<T> {
   schema: z.ZodType<T>;
   /** 이 설정을 수정할 수 있는 역할. 시스템 관리자는 항상 포함된다. */
   editableBy: readonly AdminRoleName[];
+  /** 오픈 전에 기념관이 값을 확정해야 하는 항목 (계획서 6장 ★) */
+  requiredBeforeOpen: boolean;
   /** 폼 문자열 → 값. 실패 시 사용자에게 보여줄 오류 메시지. */
   parse(raw: string | undefined): { ok: true; value: T } | { ok: false; error: string };
   /** 값 → 화면 표시 문자열 */
@@ -53,6 +58,7 @@ interface Common {
   description?: string;
   refs?: readonly string[];
   editableBy?: readonly AdminRoleName[];
+  requiredBeforeOpen?: boolean;
 }
 
 function build<T>(
@@ -71,6 +77,7 @@ function build<T>(
   return {
     ...common,
     editableBy: common.editableBy ?? ["system"],
+    requiredBeforeOpen: common.requiredBeforeOpen ?? false,
     input,
     defaultValue,
     schema,
@@ -232,6 +239,25 @@ export function list(
         .filter((s) => s !== ""),
     (v) => (v.length === 0 ? "(없음)" : v.join(", ")),
     (v) => v.join(", "),
+  );
+}
+
+/** 시점별 환불률표. 폼에서는 JSON 문자열로 주고받는다. */
+export function refundTiers(c: Common & { defaultValue: RefundTier[] }): SettingDefinition<RefundTier[]> {
+  return build<RefundTier[]>(
+    c,
+    { kind: "tiers" },
+    c.defaultValue,
+    refundTiersSchema as unknown as z.ZodType<RefundTier[]>,
+    (raw) => {
+      try {
+        return raw === "" ? [] : JSON.parse(raw);
+      } catch {
+        return undefined;
+      }
+    },
+    describeRefundTiers,
+    (v) => JSON.stringify(v),
   );
 }
 

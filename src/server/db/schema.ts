@@ -134,6 +134,8 @@ export const spaces = pgTable(
     minDurationMinutes: integer("min_duration_minutes").notNull().default(60),
     bufferBeforeMinutes: integer("buffer_before_minutes").notNull().default(0),
     bufferAfterMinutes: integer("buffer_after_minutes").notNull().default(0),
+    /** 공간별 추가 동의 항목 키 (예: hallRules). 목록은 src/domain/spaces/consents.ts */
+    extraConsents: jsonb("extra_consents").$type<string[]>().notNull().default([]),
     isPublic: boolean("is_public").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     ...timestamps,
@@ -223,6 +225,54 @@ export const bookingWindows = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("booking_windows_range", sql`${t.opensFrom} <= ${t.opensUntil}`)],
+);
+
+// ─── 요금·감면 ──────────────────────────────────────────────────
+
+/**
+ * 요금표 버전 (추가만 가능, 트리거로 수정·삭제 차단).
+ * 적용 시각이 가장 늦으면서 기준 시각 이전인 행이 적용된다. 같은 시각이면 id가 큰 행.
+ * items 형식은 src/domain/pricing/fee-schedule.ts
+ */
+export const feeSchedules = pgTable(
+  "fee_schedules",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+    items: jsonb("items").notNull(),
+    reason: text("reason").notNull(),
+    createdBy: uuid("created_by").references(() => adminUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("fee_schedules_effective_idx").on(t.effectiveFrom.desc(), t.id.desc())],
+);
+
+export const discountKind = pgEnum("discount_kind", ["percent", "amount"]);
+
+/** 감면 규칙. 신청 건에는 적용 당시 규칙 내용을 스냅샷으로 남긴다. */
+export const discountRules = pgTable(
+  "discount_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    kind: discountKind("kind").notNull(),
+    /** percent: 1~100, amount: 원 */
+    value: integer("value").notNull(),
+    proofRequired: boolean("proof_required").notNull().default(true),
+    /** 증빙 안내 문구 (예: 비영리단체 고유번호증 사본) */
+    proofGuide: text("proof_guide").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: uuid("created_by").references(() => adminUsers.id),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      "discount_rules_value_range",
+      sql`(${t.kind} = 'percent' and ${t.value} between 1 and 100) or (${t.kind} = 'amount' and ${t.value} > 0)`,
+    ),
+  ],
 );
 
 // ─── 단체·신청 ──────────────────────────────────────────────────
