@@ -29,6 +29,13 @@
       "when": 1790313018444,
       "tag": "0003_fee_schedules_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790314456665,
+      "tag": "0004_stage2_applications",
+      "breakpoints": true
     }
   ]
 }

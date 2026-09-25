@@ -16,6 +16,7 @@ const items = [
   { href: "/admin/settings/payment", label: "결제·환불" },
   { href: "/admin/settings/notification", label: "알림" },
   { href: "/admin/settings/privacy", label: "개인정보" },
+  { href: "/admin/settings/content", label: "안내·규정 문구" },
   { href: "/admin/settings/integrations", label: "연동 상태" },
 ];
 

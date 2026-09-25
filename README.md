@@ -16,7 +16,8 @@ docker compose up -d db         # PostgreSQL (taeil, taeil_test DB)
 pnpm db:migrate                 # 스키마 적용
 pnpm db:seed                    # 5개 공간, 기본 휴관 규칙(매주 월요일, 1월 1일)
 pnpm admin:create --login admin --name "시스템관리자" --role system
-pnpm dev                        # http://localhost:3000/admin
+pnpm dev                        # 이용자 http://localhost:3000 · 관리자 http://localhost:3000/admin
+pnpm worker                     # 주기 작업(결제 유효시간 만료, 고아 첨부·세션 정리) — 별도 터미널
 ```
 
 첫 로그인 때 인증 앱(Google Authenticator 등)으로 2단계 인증을 등록해야 합니다.
@@ -29,6 +30,7 @@ pnpm dev                        # http://localhost:3000/admin
 | `pnpm test` | 단위 테스트 + DB 통합 테스트 (`TEST_DATABASE_URL`이 없으면 DB 테스트는 건너뜀) |
 | `pnpm db:generate` | 스키마(`src/server/db/schema.ts`) 변경 후 마이그레이션 생성 |
 | `pnpm db:migrate` | 마이그레이션 적용 |
+| `pnpm worker` | pg-boss 작업 프로세스 (1분마다 결제 유효시간 만료 처리 등) |
 
 ## 구조
 
@@ -40,13 +42,20 @@ src/
     pricing/         요금표 형식, 감면 입력
     refund/          시점별 환불률
     spaces/          공간 입력 검증, 동의 항목
+    booking/         신청 규칙(BR-01~08), 운영시간·시간 칸, 신청서 입력 검증
+    organization/    고유번호·사업자등록번호 검증
   server/
     db/              스키마, 마이그레이션 실행
     auth/            비밀번호(argon2id), TOTP, 세션, 비밀값 암호화
     settings/        설정 저장·되돌리기·예약 취소·확정·이력, 오픈 준비 점검
-    spaces/ calendar/ pricing/   공간·휴관·일정 차단·접수기간·요금표·감면 저장
+    spaces/ calendar/ pricing/   공간·휴관·일정 차단·접수기간·요금표·감면 저장, 공간 사진
+    booking/         달력·가용성·견적, 신청 제출, 결제 유효시간 만료, 첨부
+    storage/         파일 저장소(로컬), 파일 형식 확인, 악성코드 검사(clamd)
+    jobs/            pg-boss 주기 작업
     audit/           감사 로그 기록·조회
   app/
+    (public)/        대관 안내, 공간 안내, 신청(일정 선택 → 신청서 → 결제 대기)
+    api/             달력·시간표·견적·첨부 업로드 API
     admin/login/     로그인, 2단계 인증
     admin/(console)/ 대시보드, 정책 설정(공간·휴관일·일정 차단·접수기간·요금표·감면 포함), 감사 로그
 drizzle/             SQL 마이그레이션 (0001: 이중 예약 방지 배제 제약·추가 전용 트리거, 0003: 요금표 추가 전용)

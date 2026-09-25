@@ -63,7 +63,6 @@ export default async function SpacesPage({ searchParams }: { searchParams: Promi
           공간 추가
         </Link>
       )}
-      <p className="mt-4 text-xs text-muted">공간 사진 등록은 첨부파일 저장소와 함께 단계 2에서 추가됩니다.</p>
     </div>
   );
 }

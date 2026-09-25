@@ -373,6 +373,55 @@ export const settingDefinitions = {
     max: 10,
     unit: "년",
   }),
+
+  // ─── 안내·규정 문구 ([요구] 11·12장) ───
+  "content.guideNotice": text({
+    group: "content",
+    label: "대관 안내 추가 문구",
+    description: "대관 안내 화면 상단에 표시합니다. 빈 줄로 문단을 나눕니다.",
+    defaultValue: "18:00 이전에 공간 사용·철수 방법을 담당자에게 인계받아야 합니다.\n귀중품과 물품의 분실·파손 책임은 이용 단체에 있습니다.",
+    multiline: true,
+    maxLength: 2000,
+  }),
+  "content.privacyPolicy": text({
+    group: "content",
+    label: "개인정보 수집·이용 동의 전문",
+    refs: ["[요구] 12·24장"],
+    defaultValue:
+      "수집 항목: 단체명, 고유번호·사업자등록번호, 담당자 이름·휴대전화·이메일, 행사 정보, 첨부파일\n이용 목적: 대관 신청 접수·심사, 결제·환불, 이용 안내\n보유 기간: 대관 종료 후 설정된 보존기간(법정 보존 자료는 관련 법령에 따름)\n동의를 거부할 수 있으나, 거부하면 대관 신청을 할 수 없습니다.",
+    multiline: true,
+    maxLength: 5000,
+    required: true,
+  }),
+  "content.operationRules": text({
+    group: "content",
+    label: "대관 운영규정 전문",
+    refs: ["[요구] 12장"],
+    defaultValue:
+      "1. 귀중품 및 물품의 분실·파손 책임은 이용 단체에 있습니다.\n2. PC·HDMI 등 장비를 임의로 변경하지 않습니다.\n3. 허가받지 않은 장비를 반입·변경하지 않습니다.\n4. 음식물(식사류)은 먹을 수 없습니다.\n5. 신청 내용과 다르게 사용하면 이용이 제한될 수 있습니다.",
+    multiline: true,
+    maxLength: 5000,
+    required: true,
+  }),
+  "content.nightRules": text({
+    group: "content",
+    label: "야간 출입문 관리 규정 전문",
+    refs: ["[요구] 11·12장"],
+    defaultValue:
+      "1. 야간 대관은 출입문 관리 담당자를 지정해야 합니다.\n2. 18:00 이전에 사용·철수 방법을 인계받아야 합니다.\n3. 종료 후 다른 이용자가 없으면 해당 층 전체 조명을 끕니다.",
+    multiline: true,
+    maxLength: 5000,
+    required: true,
+  }),
+  "content.hallRules": text({
+    group: "content",
+    label: "공연장 이용 규정 전문",
+    refs: ["[요구] 9·12장"],
+    defaultValue: "1. 공연장 이용 전·후에 대표번호(02-318-0903~4)로 연락합니다.\n2. 무대 조명·음향 장비는 안내받은 방법으로만 사용합니다.\n3. 현수막은 500×90cm 규격만 걸 수 있습니다.",
+    multiline: true,
+    maxLength: 5000,
+    required: true,
+  }),
 } satisfies Record<string, AnySettingDefinition>;
 
 export type SettingKey = keyof typeof settingDefinitions;

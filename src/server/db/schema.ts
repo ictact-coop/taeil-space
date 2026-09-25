@@ -325,6 +325,8 @@ export const applications = pgTable(
     eventTitle: text("event_title").notNull(),
     eventPurpose: text("event_purpose").notNull(),
     expectedHeadcount: integer("expected_headcount").notNull(),
+    /** 행사 공개 여부 ([요구] 15장) */
+    eventPublic: boolean("event_public").notNull().default(false),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     nightManagerName: text("night_manager_name"),
@@ -335,6 +337,11 @@ export const applications = pgTable(
     policySnapshot: jsonb("policy_snapshot"),
     totalAmount: integer("total_amount"),
     consents: jsonb("consents").$type<Record<string, string>>().notNull().default({}),
+    discountRuleId: uuid("discount_rule_id").references(() => discountRules.id),
+    /** 선택한 옵션 키 목록 */
+    optionKeys: jsonb("option_keys").$type<string[]>().notNull().default([]),
+    /** 로그인 없이 신청 직후 결제 화면을 볼 수 있게 하는 토큰의 해시 (원문은 신청자 쿠키에만) */
+    accessTokenHash: text("access_token_hash"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -366,6 +373,56 @@ export const applicationStatusHistory = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("application_status_history_app_idx").on(t.applicationId)],
+);
+
+/** 월별 신청번호 발급 (R202610-00125) */
+export const applicationCounters = pgTable("application_counters", {
+  month: text("month").primaryKey(),
+  last: integer("last").notNull().default(0),
+});
+
+// ─── 첨부파일·공간 사진 ─────────────────────────────────────────
+
+export const attachmentKind = pgEnum("attachment_kind", ["event_plan", "discount_proof", "other"]);
+export const scanStatus = pgEnum("scan_status", ["clean", "infected", "unscanned", "error"]);
+
+/**
+ * 신청 첨부파일. 신청서 작성 중에 먼저 올리고(upload_token으로 묶음), 제출할 때 신청에 연결한다.
+ * 연결되지 않은 파일은 정리 작업이 지운다.
+ */
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+    uploadTokenHash: text("upload_token_hash").notNull(),
+    kind: attachmentKind("kind").notNull(),
+    originalName: text("original_name").notNull(),
+    storageKey: text("storage_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    sha256: text("sha256").notNull(),
+    scanStatus: scanStatus("scan_status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("attachments_application_idx").on(t.applicationId), index("attachments_token_idx").on(t.uploadTokenHash)],
+);
+
+export const spacePhotos = pgTable(
+  "space_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    alt: text("alt").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: uuid("created_by").references(() => adminUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("space_photos_space_idx").on(t.spaceId, t.sortOrder)],
 );
 
 // ─── 일정 점유 (이중 예약 방지의 핵심, 배제 제약은 SQL 마이그레이션) ───

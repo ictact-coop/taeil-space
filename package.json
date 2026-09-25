@@ -19,7 +19,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
@@ -27,6 +28,7 @@
     "next": "^16.3.6",
     "otplib": "^13.5.0",
     "pg": "^8.23.0",
+    "pg-boss": "^12.34.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

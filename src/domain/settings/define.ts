@@ -14,6 +14,7 @@ export const settingGroups = {
   payment: { label: "결제·환불", description: "결제 방식, 결제 유효시간, 환불 처리" },
   notification: { label: "알림", description: "사건별 발송 채널과 시점" },
   privacy: { label: "개인정보", description: "자료 보존기간" },
+  content: { label: "안내·규정 문구", description: "대관 안내와 신청 시 동의받는 규정 전문" },
 } as const;
 
 export type SettingGroup = keyof typeof settingGroups;
