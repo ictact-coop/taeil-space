@@ -266,6 +266,8 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
           submittedAt: now,
           paidAt: free ? now : null,
           accessTokenHash: hashToken(accessToken),
+          createdAt: now,
+          updatedAt: now,
         })
         .returning({ id: applications.id });
 
@@ -283,6 +285,8 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
         amount: price.total,
         status: free ? "paid" : "ready",
         paidAt: free ? now : null,
+        createdAt: now,
+        updatedAt: now,
       });
       if (files.length > 0) {
         await tx.update(attachments).set({ applicationId: app!.id }).where(and(eq(attachments.uploadTokenHash, tokenHash), isNull(attachments.applicationId)));

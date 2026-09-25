@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 import { effectiveBookingWindow } from "@/domain/calendar/booking-window";
 import type { ClosureRule } from "@/domain/calendar/closures";
 import { hoursFromSettings, type OperatingHours } from "@/domain/booking/time";
@@ -94,7 +94,14 @@ export interface BusyInterval {
 }
 
 /** 기간과 겹치는 유효한 점유 (만료된 결제대기는 빈 것으로 본다) */
-export async function loadBusyIntervals(db: DbOrTx, spaceId: string, from: Date, to: Date, now: Date): Promise<BusyInterval[]> {
+export async function loadBusyIntervals(
+  db: DbOrTx,
+  spaceId: string,
+  from: Date,
+  to: Date,
+  now: Date,
+  excludeApplicationId?: string,
+): Promise<BusyInterval[]> {
   const rows = await db
     .select({
       from: sql<string>`lower(${slotOccupancies.during})`,
@@ -107,6 +114,7 @@ export async function loadBusyIntervals(db: DbOrTx, spaceId: string, from: Date,
         eq(slotOccupancies.spaceId, spaceId),
         sql`${slotOccupancies.during} && tstzrange(${from.toISOString()}::timestamptz, ${to.toISOString()}::timestamptz, '[)')`,
         or(isNull(slotOccupancies.expiresAt), gt(slotOccupancies.expiresAt, now)),
+        excludeApplicationId ? or(isNull(slotOccupancies.applicationId), ne(slotOccupancies.applicationId, excludeApplicationId)) : undefined,
       ),
     );
   return rows.map((r) => ({ from: new Date(r.from), to: new Date(r.to), kind: r.kind }));

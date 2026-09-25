@@ -8,6 +8,10 @@ export const areaEditors = {
   bookingWindows: ["system", "rental"],
   fees: ["system"],
   discounts: ["system"],
+  /** 신청 심사(보완요청·반려·승인·입금확인) */
+  review: ["system", "rental"],
+  /** 환불 수동 완료·재처리 */
+  refunds: ["system", "rental", "accounting"],
 } as const satisfies Record<string, readonly AdminRoleName[]>;
 
 export type ManagedArea = keyof typeof areaEditors;

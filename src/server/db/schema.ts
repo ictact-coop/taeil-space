@@ -344,6 +344,10 @@ export const applications = pgTable(
     accessTokenHash: text("access_token_hash"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    reviewStartedAt: timestamp("review_started_at", { withTimezone: true }),
+    /** 보완요청 내용과 제출 기한 */
+    revisionMessage: text("revision_message"),
+    revisionDeadline: timestamp("revision_deadline", { withTimezone: true }),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedBy: uuid("decided_by").references(() => adminUsers.id),
     decisionReason: text("decision_reason"),
@@ -504,6 +508,7 @@ export const refundBasis = pgEnum("refund_basis", [
   "cancelled",
   "venue_fault",
   "late_payment",
+  "payment_error",
 ]);
 export const refundStatus = pgEnum("refund_status", ["requested", "succeeded", "failed"]);
 
@@ -526,6 +531,9 @@ export const refunds = pgTable(
     failureReason: text("failure_reason"),
     attemptCount: integer("attempt_count").notNull().default(0),
     requestedBy: uuid("requested_by").references(() => adminUsers.id),
+    /** 계좌이체 환불 등 수동 처리 메모 */
+    manualNote: text("manual_note"),
+    completedBy: uuid("completed_by").references(() => adminUsers.id),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     ...timestamps,
   },
@@ -535,3 +543,69 @@ export const refunds = pgTable(
     index("refunds_status_idx").on(t.status),
   ],
 );
+
+// ─── 심사 메모·알림·신청자 인증 ────────────────────────────────
+
+/** 담당자만 보는 내부 메모 (ADM-003) */
+export const applicationNotes = pgTable(
+  "application_notes",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => adminUsers.id),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("application_notes_app_idx").on(t.applicationId)],
+);
+
+export const notificationChannel = pgEnum("notification_channel", ["email", "lms"]);
+export const notificationStatus = pgEnum("notification_status", ["pending", "sent", "failed", "skipped"]);
+
+/** 알림 발송 대기열·이력. 상태 변경 트랜잭션 안에서 pending으로 쌓고, 커밋 뒤와 작업 프로세스가 보낸다. */
+export const notificationLogs = pgTable(
+  "notification_logs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+    event: text("event").notNull(),
+    channel: notificationChannel("channel").notNull(),
+    recipient: text("recipient").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    status: notificationStatus("status").notNull().default("pending"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (t) => [index("notification_logs_status_idx").on(t.status), index("notification_logs_app_idx").on(t.applicationId)],
+);
+
+/** 나의 대관 본인 확인용 일회용 코드 */
+export const applicantOtps = pgTable(
+  "applicant_otps",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** 정규화한 이메일의 해시 */
+    destinationHash: text("destination_hash").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("applicant_otps_dest_idx").on(t.destinationHash, t.createdAt)],
+);
+
+export const applicantSessions = pgTable("applicant_sessions", {
+  /** 세션 토큰의 SHA-256 */
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

@@ -1,41 +1,36 @@
-import { and, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Paragraphs } from "@/components/public/paragraphs";
 import { Steps } from "@/components/public/steps";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 import { formatKst } from "@/lib/time";
-import { getApplicationForApplicant } from "@/server/booking/access";
-import { getApplicantToken } from "@/server/booking/applicant-cookie";
+import { getApplicantView } from "@/server/applicant/current";
 import { db } from "@/server/db/client";
-import { slotOccupancies } from "@/server/db/schema";
+import { publicPaymentConfig } from "@/server/payments/gateway";
 import { getSettings } from "@/server/settings/service";
 import { Countdown } from "./countdown";
+import { PayButton } from "./pay-button";
 
 export const metadata: Metadata = { title: "결제" };
 export const dynamic = "force-dynamic";
 
 export default async function PayPage({ params }: { params: Promise<{ no: string }> }) {
   const { no } = await params;
-  const found = await getApplicationForApplicant(db, no, await getApplicantToken(no));
+  const found = await getApplicantView(no);
   if (!found) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <p className="text-lg font-semibold text-navy">신청 내역을 찾을 수 없습니다</p>
-        <p className="mt-3 text-sm text-muted">신청한 브라우저에서 다시 열어 주세요. 신청 내역 조회(본인 확인)는 곧 제공됩니다.</p>
-        <Link href="/" className="btn-primary mt-6">
-          대관 안내로
+        <p className="mt-3 text-sm text-muted">신청한 브라우저에서 다시 열거나, 나의 대관에서 이메일 확인 후 조회해 주세요.</p>
+        <Link href="/my" className="btn-primary mt-6">
+          나의 대관
         </Link>
       </div>
     );
   }
   const { application: app, spaceName, payment, files } = found;
   const settings = await getSettings(db);
-  const [hold] = await db
-    .select({ expiresAt: slotOccupancies.expiresAt })
-    .from(slotOccupancies)
-    .where(and(eq(slotOccupancies.applicationId, app.id), eq(slotOccupancies.kind, "pending_payment")));
-  const expiresAt = hold?.expiresAt ?? null;
+  const expiresAt = found.holdExpiresAt;
   const pending = app.status === "pending_payment" && expiresAt !== null && expiresAt > new Date();
   const time = `${formatKst(app.startsAt).slice(0, 13)} ${formatKst(app.startsAt).slice(-5)}–${formatKst(app.endsAt).slice(-5)}`;
 
@@ -104,12 +99,15 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
         )}
         {pending && payment?.method === "pg" && (
           <div className="mt-6 rounded bg-cream p-4 text-sm">
-            <p className="font-semibold text-navy">온라인 결제 준비 중</p>
-            <p className="mt-1 text-xs text-muted">카드 결제 기능을 연결하고 있습니다. 결제 기한 안에 이 화면에서 결제할 수 있게 됩니다.</p>
-            <button type="button" disabled className="btn-primary mt-3">
-              카드로 결제하기
-            </button>
+            <p className="font-semibold text-navy">카드로 결제해 주세요</p>
+            <p className="mt-1 text-xs text-muted">결제가 확인되면 신청이 접수되고 담당자 심사가 시작됩니다.</p>
+            <PayButton applicationNo={app.applicationNo} mode={publicPaymentConfig().mode} />
           </div>
+        )}
+        {app.status !== "pending_payment" && (
+          <Link href={`/my/${app.applicationNo}`} className="btn-secondary mt-6">
+            신청 내역 보기
+          </Link>
         )}
       </div>
     </div>

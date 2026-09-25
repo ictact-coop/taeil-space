@@ -14,6 +14,9 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         </div>
         <nav aria-label="관리자 메뉴" className="flex flex-row flex-wrap gap-1 md:flex-col">
           <NavLink href="/admin">대시보드</NavLink>
+          <NavLink href="/admin/applications">신청 관리</NavLink>
+          <NavLink href="/admin/calendar">대관 캘린더</NavLink>
+          <NavLink href="/admin/refunds">환불 처리</NavLink>
           <NavLink href="/admin/settings">정책 설정</NavLink>
           {admin.role === "system" && <NavLink href="/admin/audit">감사 로그</NavLink>}
         </nav>

@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { writeAudit } from "@/server/audit/log";
 import { applications, applicationStatusHistory, payments, slotOccupancies } from "@/server/db/schema";
+import { enqueueApplicationNotification } from "@/server/notifications/queue";
 import type { Db, DbOrTx } from "@/server/db/types";
 
 /** 결제대기 → 미결제취소 처리 (한 건) */
@@ -30,6 +31,7 @@ async function expireOne(tx: DbOrTx, applicationId: string, now: Date): Promise<
     targetId: applicationId,
     after: { applicationNo: updated[0]!.applicationNo, expiredAt: now.toISOString() },
   });
+  await enqueueApplicationNotification(tx, "payment_expired", applicationId);
   return true;
 }
 
