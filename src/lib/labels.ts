@@ -18,6 +18,8 @@ export const auditActionLabels: Record<string, string> = {
   "auth.locked": "계정 잠김",
   "auth.totp_enrolled": "2단계 인증 등록",
   "admin.created": "관리자 계정 생성",
+  "admin.updated": "관리자 계정 정보 변경",
+  "admin.password-changed": "관리자 비밀번호 변경(본인)",
   "admin.reset-2fa": "관리자 2단계 인증 초기화",
   "admin.reset-password": "관리자 비밀번호 재발급",
   "admin.deactivate": "관리자 계정 중지",

@@ -54,6 +54,8 @@ export interface CurrentAdmin {
   loginId: string;
   role: AdminRoleName;
   ip: string | null;
+  /** 현재 로그인 세션 id (비밀번호 변경 시 이 세션만 남긴다) */
+  sessionId: string;
 }
 
 /**
@@ -69,7 +71,7 @@ export async function requireAdmin(roles?: readonly AdminRoleName[]): Promise<Cu
   const role = current.user.role;
   if (roles && role !== "system" && !roles.includes(role)) redirect("/admin?denied=1");
   const meta = await requestMeta();
-  return { id: current.user.id, name: current.user.name, loginId: current.user.loginId, role, ip: meta.ip ?? null };
+  return { id: current.user.id, name: current.user.name, loginId: current.user.loginId, role, ip: meta.ip ?? null, sessionId: current.session.id };
 }
 
 /** 비밀번호만 확인된(2단계 인증 전) 세션 */

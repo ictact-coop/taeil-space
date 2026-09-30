@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { roleLabels } from "@/lib/labels";
 import { requireAdmin } from "@/server/auth/current";
 import { logoutAction } from "./actions";
@@ -18,11 +19,15 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
           <NavLink href="/admin/calendar">대관 캘린더</NavLink>
           <NavLink href="/admin/refunds">환불 처리</NavLink>
           <NavLink href="/admin/settings">정책 설정</NavLink>
+          {admin.role === "system" && <NavLink href="/admin/accounts">계정 관리</NavLink>}
           {admin.role === "system" && <NavLink href="/admin/audit">감사 로그</NavLink>}
         </nav>
         <div className="mt-6 border-t border-white/15 px-3 pt-4 text-sm md:mt-auto">
           <p className="font-medium">{admin.name}</p>
           <p className="text-xs text-white/60">{roleLabels[admin.role]}</p>
+          <Link href="/admin/account" className="mt-2 inline-block text-xs text-white/75 underline hover:text-white">
+            내 계정
+          </Link>
           <form action={logoutAction} className="mt-3">
             <button type="submit" className="text-xs text-white/75 underline hover:text-white">
               로그아웃

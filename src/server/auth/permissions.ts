@@ -10,6 +10,8 @@ export const areaEditors = {
   discounts: ["system"],
   /** 신청 심사(보완요청·반려·승인·입금확인) */
   review: ["system", "rental"],
+  /** 관리자 계정 생성·권한 변경·초기화·중지 */
+  accounts: ["system"],
   /** 환불 수동 완료·재처리 */
   refunds: ["system", "rental", "accounting"],
 } as const satisfies Record<string, readonly AdminRoleName[]>;

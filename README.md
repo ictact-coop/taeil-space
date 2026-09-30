@@ -43,7 +43,7 @@ pnpm worker                     # 주기 작업(결제 유효시간 만료, 고�
 | `pnpm db:generate` | 스키마(`src/server/db/schema.ts`) 변경 후 마이그레이션 생성 |
 | `pnpm db:migrate` | 마이그레이션 적용 |
 | `pnpm worker` | pg-boss 작업 프로세스: 결제 유효시간 만료·알림 발송(1분), 환불 재시도(2분), 결제 대사(5분), 보완기한 만료(10분), 정리 작업(매시) |
-| `pnpm admin:create` / `pnpm admin:manage` | 관리자 계정 생성 / 목록·2단계 인증 초기화·비밀번호 재발급·중지 |
+| `pnpm admin:create` / `pnpm admin:manage` | 첫 관리자 계정 생성 / 비상 복구(목록·2단계 인증 초기화·비밀번호 재발급·중지·재개). 평소에는 관리 화면의 **계정 관리**를 쓴다 |
 | `docker build .` | 운영 이미지 (`deploy/` 참고) |
 
 ## 구조

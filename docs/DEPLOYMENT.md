@@ -97,7 +97,7 @@ $C run --rm web pnpm admin:create --login admin --name "담당자 이름" --role
 $C run --rm web pnpm db:seed   # 공간·기본 휴관일 (처음 한 번)
 ```
 
-이후에는 관리자 화면의 **정책 설정 → 개요·오픈 준비**에서 남은 항목을 채운다. 자세한 절차는 `docs/GO_LIVE_CHECKLIST.md`에 있다.
+다른 담당자 계정은 관리자 화면의 **계정 관리**에서 만든다. 이후에는 **정책 설정 → 개요·오픈 준비**에서 남은 항목을 채운다. 자세한 절차는 `docs/GO_LIVE_CHECKLIST.md`에 있다.
 
 ### 2.5 PortOne 웹훅
 
