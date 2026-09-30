@@ -4,14 +4,15 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { AdminRoleName } from "@/domain/settings/define";
 import { db } from "@/server/db/client";
+import { clientIpFrom } from "@/server/security/client-ip";
 import { createSession, deleteSession, validateSession, type RequestMeta } from "./service";
 
 export const SESSION_COOKIE = "taeil_admin_session";
 
 export async function requestMeta(): Promise<RequestMeta> {
   const h = await headers();
-  const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return { ip: forwarded || h.get("x-real-ip"), userAgent: h.get("user-agent") };
+  const ip = clientIpFrom(h);
+  return { ip: ip === "unknown" ? null : ip, userAgent: h.get("user-agent") };
 }
 
 export async function setSessionCookie(token: string, expiresAt: Date): Promise<void> {

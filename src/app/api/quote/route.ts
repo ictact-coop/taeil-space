@@ -5,6 +5,7 @@ import { quote } from "@/server/booking/availability";
 import { findSpace } from "@/server/booking/context";
 import { db } from "@/server/db/client";
 import { badRequest, json, notFound } from "@/server/http/json";
+import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 const schema = z.object({
   spaceId: z.string().uuid(),
@@ -18,6 +19,7 @@ const schema = z.object({
 
 /** 선택한 일시의 규칙 검사와 예상 금액 */
 export async function POST(req: Request) {
+  if (!(await throttle("quote", req.headers))) return json({ error: TOO_MANY_REQUESTS }, { status: 429 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest("요청 형식이 올바르지 않습니다.");
   const q = parsed.data;

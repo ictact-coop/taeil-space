@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { attachments } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
@@ -6,9 +6,10 @@ import { getSettings } from "@/server/settings/service";
 import { detectContentType, extensionOf } from "@/server/storage/file-type";
 import { scanFile } from "@/server/storage/scan";
 import { getStorage } from "@/server/storage/storage";
+import { isValidUploadToken } from "@/server/security/upload-token";
 
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-export const newUploadToken = () => randomBytes(24).toString("base64url");
+export { issueUploadToken as newUploadToken } from "@/server/security/upload-token";
 
 export type AttachmentKind = "event_plan" | "discount_proof" | "other";
 export type AttachmentRow = typeof attachments.$inferSelect;
@@ -22,7 +23,7 @@ export async function uploadAttachment(
   db: Db,
   params: { uploadToken: string; kind: AttachmentKind; fileName: string; data: Buffer; now?: Date },
 ): Promise<UploadResult> {
-  if (params.uploadToken.length < 20) return { ok: false, error: "업로드 세션이 올바르지 않습니다. 화면을 새로고침하세요." };
+  if (!isValidUploadToken(params.uploadToken)) return { ok: false, error: "업로드 세션이 올바르지 않습니다. 화면을 새로고침하세요." };
   const settings = await getSettings(db, params.now);
   const ext = extensionOf(params.fileName);
   const allowed = settings["application.attachmentExtensions"];

@@ -1,0 +1,72 @@
+# 운영 배포 (VM 1대). 사용법은 docs/DEPLOYMENT.md 참고.
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d
+# DB는 기본적으로 관리형 PostgreSQL(DATABASE_URL)을 쓴다.
+# 같은 VM에 DB를 두려면 --profile localdb 를 붙이고 DATABASE_URL을 postgres://...@db:5432/taeil 로 둔다.
+name: taeil
+
+x-app: &app
+  image: ${APP_IMAGE:-taeil-space:latest}
+  build:
+    context: ..
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - uploads:/data/uploads
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  migrate:
+    <<: *app
+    command: ["pnpm", "db:migrate"]
+    restart: "no"
+
+  web:
+    <<: *app
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    expose: ["3000"]
+
+  worker:
+    <<: *app
+    command: ["pnpm", "worker"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck: { disable: true }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN을 설정하세요}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+
+  # 첨부파일 악성코드 검사 (메모리 약 1.5GB 필요). 쓰려면 --profile clamav, .env에 CLAMAV_HOST=clamav
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    profiles: ["clamav"]
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    profiles: ["localdb"]
+    environment:
+      POSTGRES_DB: taeil
+      POSTGRES_USER: taeil
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  uploads:
+  caddy_data:
+  caddy_config:
+  pgdata:

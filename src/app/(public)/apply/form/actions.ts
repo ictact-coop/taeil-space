@@ -7,11 +7,13 @@ import { applicationInputFromForm } from "@/domain/booking/application-input";
 import { setApplicantToken } from "@/server/booking/applicant-cookie";
 import { submitApplication } from "@/server/booking/submit";
 import { db } from "@/server/db/client";
+import { clientIpFrom } from "@/server/security/client-ip";
+import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 export async function submitApplicationAction(prev: FormState, form: FormData): Promise<FormState> {
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip");
-  const result = await submitApplication(db, applicationInputFromForm(form), { ip });
+  if (!(await throttle("submit"))) return { version: prev.version + 1, formError: TOO_MANY_REQUESTS, values: formValues(form) };
+  const ip = clientIpFrom(await headers());
+  const result = await submitApplication(db, applicationInputFromForm(form), { ip: ip === "unknown" ? null : ip });
   if (!result.ok) {
     return { version: prev.version + 1, formError: result.formError ?? "입력값을 확인하세요.", fieldErrors: result.fieldErrors, values: formValues(form) };
   }

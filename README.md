@@ -3,6 +3,13 @@
 2026년 유료 대관 전환에 맞춘 대관 신청·심사·결제·예약 관리 시스템입니다.
 개발 계획과 구현 순서는 [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)를 참고하세요.
 
+| 문서 | 내용 |
+|---|---|
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 운영 서버 추천, 배포·업데이트, 백업·복구, 보안 설정 |
+| [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md) | 오픈 체크리스트(라이브 결제 전환, 소액 실결제 테스트, taeil.org 연결) |
+| [docs/OPEN_REQUESTS.md](docs/OPEN_REQUESTS.md) | 오픈을 위해 기념관에 요청할 것 |
+| [docs/OPERATIONS_MANUAL.md](docs/OPERATIONS_MANUAL.md) | 관리자 운영 매뉴얼 |
+
 ## 기술 스택
 
 Next.js 16 (App Router) · TypeScript · PostgreSQL 16 · Drizzle ORM · Tailwind CSS 4 · Vitest
@@ -35,7 +42,9 @@ pnpm worker                     # 주기 작업(결제 유효시간 만료, 고�
 | `pnpm test` | 단위 테스트 + DB 통합 테스트 (`TEST_DATABASE_URL`이 없으면 DB 테스트는 건너뜀) |
 | `pnpm db:generate` | 스키마(`src/server/db/schema.ts`) 변경 후 마이그레이션 생성 |
 | `pnpm db:migrate` | 마이그레이션 적용 |
-| `pnpm worker` | pg-boss 작업 프로세스: 결제 유효시간 만료·알림 발송(1분), 환불 재시도(2분), 결제 대사(5분), 보완기한 만료(10분) |
+| `pnpm worker` | pg-boss 작업 프로세스: 결제 유효시간 만료·알림 발송(1분), 환불 재시도(2분), 결제 대사(5분), 보완기한 만료(10분), 정리 작업(매시) |
+| `pnpm admin:create` / `pnpm admin:manage` | 관리자 계정 생성 / 목록·2단계 인증 초기화·비밀번호 재발급·중지 |
+| `docker build .` | 운영 이미지 (`deploy/` 참고) |
 
 ## 구조
 

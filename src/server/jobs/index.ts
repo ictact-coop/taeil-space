@@ -8,6 +8,7 @@ import { flushNotifications } from "@/server/notifications/queue";
 import { getGateway } from "@/server/payments/gateway";
 import { processPendingRefunds } from "@/server/payments/refunds";
 import { reconcilePayments } from "@/server/payments/service";
+import { purgeRateLimits } from "@/server/security/rate-limit";
 
 /**
  * 주기 작업 (계획서 2.1: pg-boss). 웹 서버와 별도 프로세스(`pnpm worker`)로 실행한다.
@@ -27,6 +28,7 @@ export const jobs = {
   "expire-revisions": { cron: "*/10 * * * *", run: (db: Db) => expireRevisions(db, getGateway()) },
   "purge-orphan-attachments": { cron: "17 * * * *", run: (db: Db) => purgeOrphanAttachments(db, new Date(Date.now() - 24 * 3600_000)) },
   "purge-expired-sessions": { cron: "23 * * * *", run: async (db: Db) => (await purgeExpiredSessions(db), 0) },
+  "purge-rate-limits": { cron: "41 * * * *", run: (db: Db) => purgeRateLimits(db) },
 } as const;
 
 export async function startWorker(connectionString: string, db: Db): Promise<PgBoss> {

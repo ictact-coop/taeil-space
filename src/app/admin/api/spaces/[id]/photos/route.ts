@@ -2,10 +2,12 @@ import { getCurrentAdmin, requestMeta } from "@/server/auth/current";
 import { canManage } from "@/server/auth/permissions";
 import { db } from "@/server/db/client";
 import { badRequest, json } from "@/server/http/json";
+import { isSameOrigin } from "@/server/security/same-origin";
 import { addSpacePhoto, PHOTO_MAX_BYTES } from "@/server/spaces/photos";
 
 /** 공간 사진 업로드 (관리자 세션 쿠키 경로가 /admin이라 이 아래에 둔다) */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!isSameOrigin(req)) return json({ error: "허용되지 않은 요청입니다." }, { status: 403 });
   const current = await getCurrentAdmin();
   if (!current || !current.session.mfaVerified) return json({ error: "로그인이 필요합니다." }, { status: 401 });
   if (!canManage(current.user.role, "spaces")) return json({ error: "권한이 없습니다." }, { status: 403 });

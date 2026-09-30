@@ -609,3 +609,16 @@ export const applicantSessions = pgTable("applicant_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+// ─── 요청 횟수 제한 ─────────────────────────────────────────────
+
+/** 고정 창(window) 방식 요청 횟수 제한. 서버가 여러 대여도 같은 한도를 쓰도록 DB에 둔다. */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [uniqueIndex("rate_limits_key_window_uq").on(t.key, t.windowStart), index("rate_limits_window_idx").on(t.windowStart)],
+);

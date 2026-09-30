@@ -5,6 +5,7 @@ import { requestMeta, requirePendingMfa, startSession } from "@/server/auth/curr
 import { authenticatePassword, confirmTotpEnrollment, verifyUserTotp } from "@/server/auth/service";
 import { db } from "@/server/db/client";
 import { formatKst } from "@/lib/time";
+import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 export interface AuthFormState {
   error?: string;
@@ -16,6 +17,7 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   const loginId = String(formData.get("loginId") ?? "");
   const password = String(formData.get("password") ?? "");
   if (!loginId || !password) return { error: "아이디와 비밀번호를 입력하세요.", loginId };
+  if (!(await throttle("adminLogin"))) return { error: TOO_MANY_REQUESTS, loginId };
 
   const result = await authenticatePassword(db, loginId, password, await requestMeta());
   if (!result.ok) {
@@ -35,6 +37,7 @@ function totpError(result: { ok: false; reason: "invalid" } | { ok: false; reaso
 
 export async function verifyTotpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const current = await requirePendingMfa();
+  if (!(await throttle("adminLogin"))) return { error: TOO_MANY_REQUESTS };
   const result = await verifyUserTotp(db, current.user.id, String(formData.get("code") ?? ""), await requestMeta());
   if (!result.ok) return { error: totpError(result) };
   await startSession(current.user.id, true);

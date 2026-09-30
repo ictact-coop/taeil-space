@@ -20,6 +20,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "admin:create": "tsx scripts/create-admin.ts",
+    "admin:manage": "tsx scripts/manage-admin.ts",
     "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {

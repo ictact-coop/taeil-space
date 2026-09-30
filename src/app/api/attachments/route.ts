@@ -1,6 +1,8 @@
 import { uploadAttachment } from "@/server/booking/attachments";
 import { db } from "@/server/db/client";
 import { badRequest, json } from "@/server/http/json";
+import { isSameOrigin } from "@/server/security/same-origin";
+import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 const kinds = ["event_plan", "discount_proof", "other"] as const;
 /** 요청 본문 상한(설정의 파일당 최대 크기와 별개로 서버를 보호) */
@@ -8,7 +10,9 @@ const MAX_BODY = 55 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const length = Number(req.headers.get("content-length") ?? 0);
+  if (!isSameOrigin(req)) return json({ error: "허용되지 않은 요청입니다." }, { status: 403 });
   if (length > MAX_BODY) return badRequest("파일이 너무 큽니다.");
+  if (!(await throttle("upload", req.headers))) return json({ error: TOO_MANY_REQUESTS }, { status: 429 });
   const form = await req.formData().catch(() => null);
   if (!form) return badRequest("요청 형식이 올바르지 않습니다.");
   const file = form.get("file");

@@ -8,6 +8,7 @@ import { submitRevision, withdrawApplication } from "@/server/applications/appli
 import { clearApplicantSessionCookie, getApplicantSessionCookie, setApplicantSessionCookie } from "@/server/booking/applicant-cookie";
 import { db } from "@/server/db/client";
 import { getGateway } from "@/server/payments/gateway";
+import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 export interface LoginState {
   step: "email" | "code";
@@ -18,6 +19,7 @@ export interface LoginState {
 
 export async function requestCodeAction(_prev: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "");
+  if (!(await throttle("otpRequest"))) return { step: "email", email, error: TOO_MANY_REQUESTS };
   const r = await requestLoginCode(db, email);
   if (!r.ok) return { step: "email", email, error: r.error };
   return { step: "code", email, info: "신청할 때 적은 이메일이면 확인 코드를 보냈습니다. 메일함을 확인해 주세요." };
@@ -25,6 +27,7 @@ export async function requestCodeAction(_prev: LoginState, form: FormData): Prom
 
 export async function verifyCodeAction(prev: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? prev.email ?? "");
+  if (!(await throttle("otpVerify"))) return { step: "code", email, error: TOO_MANY_REQUESTS };
   const r = await verifyLoginCode(db, email, String(form.get("code") ?? ""));
   if (!r.ok) return { step: "code", email, error: r.error };
   await setApplicantSessionCookie(r.token, r.expiresAt);
