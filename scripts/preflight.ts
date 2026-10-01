@@ -11,6 +11,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { and, count, eq, isNotNull, sql } from "drizzle-orm";
 import { createDb } from "../src/server/db/connect";
+import { smtpConfigFromEnv } from "../src/server/notifications/mailer";
 import { adminGrades, adminUsers } from "../src/server/db/schema";
 import { getSettings } from "../src/server/settings/service";
 import { computeReadiness } from "../src/server/settings/readiness";
@@ -39,8 +40,9 @@ else ok(`APP_BASE_URL = ${base}`);
 if (env("SITE_DOMAIN") && base && !base.includes(env("SITE_DOMAIN"))) warn(`APP_BASE_URL(${base})과 SITE_DOMAIN(${env("SITE_DOMAIN")})이 다릅니다.`);
 const provider = env("EMAIL_PROVIDER") || "log";
 if (provider === "smtp") {
-  if (!env("SMTP_URL") || !env("EMAIL_FROM")) fail("EMAIL_PROVIDER=smtp인데 SMTP_URL 또는 EMAIL_FROM이 없습니다.");
-  else ok(`메일: SMTP, 발신 ${env("EMAIL_FROM")}`);
+  const smtp = smtpConfigFromEnv();
+  if (!smtp || !env("EMAIL_FROM")) fail("EMAIL_PROVIDER=smtp인데 SMTP_HOST(또는 SMTP_URL)나 EMAIL_FROM이 없습니다.");
+  else ok(`메일: SMTP ${typeof smtp === "string" ? "(SMTP_URL)" : `${smtp.host}:${smtp.port}${smtp.auth ? `, 사용자 ${smtp.auth.user}` : ""}`}, 발신 ${env("EMAIL_FROM")}`);
 } else if (prod) fail(`EMAIL_PROVIDER=${provider}: 운영에서는 메일이 실제로 나가지 않습니다. smtp로 설정하세요.`);
 else warn(`EMAIL_PROVIDER=${provider} (개발용)`);
 if (env("PAYMENT_FAKE") === "1") (prod ? fail : warn)("PAYMENT_FAKE=1: 가짜 결제가 켜져 있습니다. 운영에서는 비워 두세요.");
@@ -127,11 +129,13 @@ if (env("DATABASE_URL")) {
 
 if (args.smtp) {
   section("SMTP 접속");
-  if (provider !== "smtp" || !env("SMTP_URL")) fail("EMAIL_PROVIDER=smtp와 SMTP_URL이 있어야 확인할 수 있습니다.");
+  const smtp = smtpConfigFromEnv();
+  if (provider !== "smtp" || !smtp) fail("EMAIL_PROVIDER=smtp와 SMTP_HOST(또는 SMTP_URL)가 있어야 확인할 수 있습니다.");
   else {
     try {
       const nodemailer = await import("nodemailer");
-      await nodemailer.createTransport(env("SMTP_URL")).verify();
+      const timeouts = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 };
+      await nodemailer.createTransport(typeof smtp === "string" ? { url: smtp, ...timeouts } : { ...smtp, ...timeouts }).verify();
       ok("SMTP 서버 접속·인증 성공 (실제 발송은 pnpm mail:test --to 주소)");
     } catch (e) {
       fail(`SMTP 접속 실패: ${e instanceof Error ? e.message : e}`);

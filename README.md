@@ -5,7 +5,8 @@
 
 | 문서 | 내용 |
 |---|---|
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 운영 서버 추천, 배포·업데이트, 백업·복구, 보안 설정 |
+| [docs/DEPLOY_AWS.md](docs/DEPLOY_AWS.md) | **AWS(Lightsail 서울) 배포 단계별 안내**: 계정, SES 메일, 서버, DNS, S3 백업, 첫 배포 |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 배포 스크립트, 업데이트, 백업·복구, 보안 설정 |
 | [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md) | 오픈 체크리스트(라이브 결제 전환, 소액 실결제 테스트, taeil.org 연결) |
 | [docs/OPEN_REQUESTS.md](docs/OPEN_REQUESTS.md) | 오픈을 위해 기념관에 요청할 것 |
 | [docs/OPERATIONS_MANUAL.md](docs/OPERATIONS_MANUAL.md) | 관리자 운영 매뉴얼 |
@@ -32,7 +33,7 @@ pnpm worker                     # 주기 작업(결제 유효시간 만료, 고�
 ### 결제·이메일
 
 - **결제**: `PORTONE_API_SECRET`이 없으면 개발 환경에서는 가짜 결제(“테스트 결제하기” 버튼)를 씁니다. PortOne 계약 후 `PORTONE_STORE_ID`·`PORTONE_CHANNEL_KEY`·`PORTONE_API_SECRET`·`PORTONE_WEBHOOK_SECRET`을 설정하고, PortOne 콘솔의 웹훅 주소를 `https://<도메인>/api/webhooks/portone`으로 등록합니다.
-- **이메일**: 기본값 `EMAIL_PROVIDER=log`는 실제로 보내지 않고 서버 로그에 남깁니다. 운영에서는 `EMAIL_PROVIDER=smtp`, `SMTP_URL`, `EMAIL_FROM`을 설정합니다.
+- **이메일**: 기본값 `EMAIL_PROVIDER=log`는 실제로 보내지 않고 서버 로그에 남깁니다. 운영에서는 `EMAIL_PROVIDER=smtp`, `EMAIL_FROM`과 `SMTP_HOST`·`SMTP_PORT`·`SMTP_USER`·`SMTP_PASS`(또는 `SMTP_URL` 한 줄)를 설정합니다.
 
 ## 명령어
 
