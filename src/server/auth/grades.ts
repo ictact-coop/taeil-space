@@ -11,7 +11,15 @@ import { PermissionError } from "./permissions";
  * 관리자 등급 관리. 등급을 만들고 고치는 일은 시스템 최고 관리자만 한다
  * (계정 관리 권한만 가진 사람이 자기 등급에 권한을 더하는 일을 막기 위해).
  * 최고 관리자 등급은 하나뿐이고, 권한 목록과 관계없이 모든 권한을 가지며 지울 수 없다.
+ * 동아리 운영자 등급(code=club)은 기관 밖 사람이 쓰므로 '대관 일정 조회'로 고정한다(신청자 개인정보 보호).
  */
+export const CLUB_GRADE_CODE = "club";
+export const CLUB_PERMISSIONS = ["calendar.view"] as const;
+
+/** 권한을 바꿀 수 없는 등급인지 (최고 관리자·동아리 운영자) */
+export function hasFixedPermissions(grade: { isSuper: boolean; code: string | null }): boolean {
+  return grade.isSuper || grade.code === CLUB_GRADE_CODE;
+}
 const gradeSchema = z.object({
   name: z.string().trim().min(1, "등급 이름을 입력하세요.").max(30, "등급 이름은 30자 이하로 입력하세요."),
   description: z.string().trim().max(200, "설명은 200자 이하로 입력하세요."),
@@ -90,8 +98,8 @@ export async function updateGrade(db: Db, params: { actor: Actor | null; gradeId
   if (!grade) return { ok: false, formError: "등급을 찾을 수 없습니다." };
   const parsed = gradeSchema.safeParse(params.raw);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error.issues) };
-  // 최고 관리자 등급의 권한은 '전체'로 고정
-  const permissions = grade.isSuper ? grade.permissions : normalizePermissions(parsed.data.permissions);
+  // 최고 관리자는 '전체', 동아리 운영자는 '일정 조회'로 고정
+  const permissions = grade.isSuper ? grade.permissions : grade.code === CLUB_GRADE_CODE ? [...CLUB_PERMISSIONS] : normalizePermissions(parsed.data.permissions);
   const after = { name: parsed.data.name, description: parsed.data.description, permissions };
   const before = { name: grade.name, description: grade.description, permissions: grade.permissions };
   if (JSON.stringify(before) === JSON.stringify(after)) return { ok: true };

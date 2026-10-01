@@ -53,11 +53,23 @@ describe.skipIf(!hasTestDb)("관리자 등급", () => {
   });
 
   it("권한을 바꾸면 그 등급 계정의 다음 요청부터 적용된다", async () => {
-    const club = await createTestAdmin(db, "club");
-    const { token } = await createSession(db, club.id, true, {});
+    const g = await createGrade(db, { actor: sys.actor, raw: { name: "행사 지원", description: "", permissions: ["calendar.view"] } });
+    if (!g.ok) throw new Error("grade");
+    const user = await createTestAdmin(db, "club");
+    await db.update(adminUsers).set({ gradeId: g.value.id }).where(eq(adminUsers.id, user.id));
+    const { token } = await createSession(db, user.id, true, {});
     expect((await validateSession(db, token))!.grade.permissions).toEqual(["calendar.view"]);
-    expect(await updateGrade(db, { actor: sys.actor, gradeId: club.grade.id, raw: { name: "동아리 운영자", description: "동아리 일정 확인과 신청 조회", permissions: ["calendar.view", "applications.view"] } })).toEqual({ ok: true });
+    expect(await updateGrade(db, { actor: sys.actor, gradeId: g.value.id, raw: { name: "행사 지원", description: "", permissions: ["calendar.view", "applications.view"] } })).toEqual({ ok: true });
     expect((await validateSession(db, token))!.grade.permissions).toEqual(["applications.view", "calendar.view"]);
+  });
+
+  it("동아리 운영자 등급은 '대관 일정 조회'로 고정 (이름·설명만 바뀜)", async () => {
+    const club = (await findGradeByCode(db, "club"))!;
+    expect(club.permissions).toEqual(["calendar.view"]);
+    expect(club.description).toContain("일정 확인만");
+    expect(await updateGrade(db, { actor: sys.actor, gradeId: club.id, raw: { name: "동아리 운영자", description: "동아리", permissions: ["calendar.view", "applications.view", "audit.view"] } })).toEqual({ ok: true });
+    const [row] = await db.select().from(adminGrades).where(eq(adminGrades.id, club.id));
+    expect(row).toMatchObject({ permissions: ["calendar.view"], description: "동아리" });
   });
 
   it("최고 관리자 등급: 이름·설명만 바뀌고 권한은 '전체'로 고정, 삭제 불가", async () => {

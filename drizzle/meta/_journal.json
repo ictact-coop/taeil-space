@@ -64,6 +64,13 @@
       "when": 1790816792169,
       "tag": "0008_drop_admin_role",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790827051201,
+      "tag": "0009_club_grade_schedule_only",
+      "breakpoints": true
     }
   ]
 }

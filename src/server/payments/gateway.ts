@@ -184,3 +184,11 @@ export function publicPaymentConfig(): { mode: "portone" | "fake" | "none"; stor
     channelKey: process.env.PORTONE_CHANNEL_KEY ?? null,
   };
 }
+
+/**
+ * 실제로 쓰는 결제 방식. 설정이 PG여도 연동 키가 없으면(운영) 계좌이체로 받는다.
+ * 신청 처리와 이용자 화면 문구가 같은 판단을 쓰도록 여기 둔다.
+ */
+export function effectivePaymentMethod(settingValue: "pg" | "bankTransfer"): "pg" | "bankTransfer" {
+  return settingValue === "pg" && getGateway() ? "pg" : "bankTransfer";
+}

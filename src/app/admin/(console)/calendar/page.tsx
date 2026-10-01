@@ -103,12 +103,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                         {a.orgName}
                       </Link>
                     ) : (
+                      // 신청 조회 권한이 없으면(예: 동아리 운영자) 일정만 보여 주고 단체명은 감춘다
                       <span
-                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
+                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)}–${formatKst(a.endsAt).slice(-5)} ${a.status === "confirmed" ? "예약" : "신청 진행 중"}`}
                         className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
                       >
-                        {formatKst(a.startsAt).slice(-5)} {space ? "" : `${a.spaceName} `}
-                        {a.orgName}
+                        {formatKst(a.startsAt).slice(-5)}–{formatKst(a.endsAt).slice(-5)} {space ? "" : a.spaceName}
+                        {space ? (a.status === "confirmed" ? "예약" : "신청 중") : ""}
                       </span>
                     )}
                   </li>

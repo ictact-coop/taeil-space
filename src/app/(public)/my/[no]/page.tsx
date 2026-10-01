@@ -48,6 +48,8 @@ export default async function MyApplicationPage({
     );
   }
   const { application: a, spaceName } = view;
+  const bank = view.payment?.method === "bank_transfer";
+  const word = bank ? "입금" : "결제";
   const settings = await getSettings(db);
   const step = a.status === "pending_payment" ? 3 : 4;
   const canWithdraw = ["pending_payment", "submitted", "reviewing", "revision_requested"].includes(a.status);
@@ -61,7 +63,7 @@ export default async function MyApplicationPage({
         ‹ 나의 대관
       </Link>
       <div className="my-4">
-        <Steps current={step} />
+        <Steps current={step} payLabel={word} />
       </div>
       <div className="flex flex-col gap-3">
         {q.paid && paidMessages[q.paid] && <Notice kind={q.paid === "paid" || q.paid === "already" ? "success" : "warning"}>{paidMessages[q.paid]}</Notice>}
@@ -84,8 +86,14 @@ export default async function MyApplicationPage({
           </dd>
           <dt className="text-muted">인원</dt>
           <dd>{a.expectedHeadcount}명</dd>
-          <dt className="text-muted">결제 금액</dt>
+          <dt className="text-muted">{word} 금액</dt>
           <dd>{formatWon(a.totalAmount ?? 0)}</dd>
+          {a.status === "pending_payment" && bank && view.holdExpiresAt && (
+            <>
+              <dt className="text-muted">입금 기한</dt>
+              <dd>{formatKst(view.holdExpiresAt)}까지 · 입금자명에 신청번호를 적어 주세요</dd>
+            </>
+          )}
           {a.status === "confirmed" && (
             <>
               <dt className="text-muted">안내</dt>
@@ -101,7 +109,7 @@ export default async function MyApplicationPage({
         </dl>
         {a.status === "pending_payment" && (
           <Link href={`/apply/pay/${a.applicationNo}`} className="btn-primary mt-4">
-            결제하러 가기
+            {bank ? "입금 계좌 보기" : "결제하러 가기"}
           </Link>
         )}
       </section>
@@ -162,8 +170,8 @@ export default async function MyApplicationPage({
           <form action={withdrawAction.bind(null, a.applicationNo)} className="mt-3 flex flex-col gap-3">
             <p className="text-sm">
               {a.status === "pending_payment"
-                ? "결제 전이므로 환불할 금액이 없습니다. 철회하면 잡아 둔 일정이 풀립니다."
-                : `승인 전에 철회하면 결제 금액의 ${withdrawRate}%(${formatWon(Math.floor(((a.totalAmount ?? 0) * withdrawRate) / 100))})를 환불합니다.`}
+                ? `${word} 확인 전이므로 철회하면 잡아 둔 일정이 풀립니다.${bank ? " 이미 입금하셨다면 기념관으로 연락해 주세요. 확인 후 돌려드립니다." : ""}`
+                : `승인 전에 철회하면 ${word} 금액의 ${withdrawRate}%(${formatWon(Math.floor(((a.totalAmount ?? 0) * withdrawRate) / 100))})를 환불합니다.`}
             </p>
             <label className="flex flex-col gap-1 text-sm font-medium">
               철회 사유 (선택)

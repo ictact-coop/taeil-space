@@ -1,7 +1,7 @@
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { SettingValues } from "@/domain/settings/definitions";
 import { formatKst } from "@/lib/time";
-import { applications, notificationLogs, spaces } from "@/server/db/schema";
+import { applications, notificationLogs, payments, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { getSettings } from "@/server/settings/service";
 import { sendEmail } from "./mailer";
@@ -16,6 +16,8 @@ const settingKeyFor: Record<NotificationEvent, keyof SettingValues> = {
   withdrawn: "notification.cancelled",
   refunded: "notification.cancelled",
   payment_expired: "notification.cancelled",
+  awaiting_deposit: "notification.submitted",
+  deposit_reminder: "notification.paymentDeadline",
 };
 
 export function appBaseUrl(): string {
@@ -40,6 +42,12 @@ export async function enqueueApplicationNotification(
   if (!row) return;
   const settings = await getSettings(tx);
   const { app } = row;
+  const [payment] = await tx.select({ method: payments.method }).from(payments).where(eq(payments.applicationId, applicationId)).orderBy(desc(payments.createdAt)).limit(1);
+  const [hold] = await tx
+    .select({ expiresAt: slotOccupancies.expiresAt })
+    .from(slotOccupancies)
+    .where(and(eq(slotOccupancies.applicationId, applicationId), eq(slotOccupancies.kind, "pending_payment")))
+    .limit(1);
   const ctx: MessageContext = {
     applicationNo: app.applicationNo,
     orgName: app.orgName,
@@ -49,6 +57,13 @@ export async function enqueueApplicationNotification(
     total: app.totalAmount ?? 0,
     myUrl: `${appBaseUrl()}/my/${app.applicationNo}`,
     reviewPeriod: settings["operation.reviewPeriodText"],
+    method: payment?.method ?? null,
+    // 지금 설정값(오타 수정 등 반영)을 쓰고, 비어 있으면 신청 당시 안내된 값을 쓴다
+    bankAccountInfo:
+      settings["payment.bankAccountInfo"].trim() ||
+      ((app.policySnapshot as { settings?: { values?: Record<string, unknown> } } | null)?.settings?.values?.["payment.bankAccountInfo"] as string | undefined) ||
+      null,
+    depositDeadline: hold?.expiresAt ? `${formatKst(hold.expiresAt)}까지` : null,
     ...extra,
   };
   const channel = settings[settingKeyFor[event]] as "both" | "email" | "lms" | "off";

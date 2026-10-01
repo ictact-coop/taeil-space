@@ -105,8 +105,11 @@ export async function approveApplication(db: Db, p: { actor: Actor; applicationI
   });
 }
 
-/** 계좌이체 입금 확인 → 신청접수 */
-export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: string; note: string; now?: Date }): Promise<MutationResult> {
+/**
+ * 계좌이체 입금 확인 → 신청접수. approve가 true면 같은 처리 안에서 승인(예약확정)까지 한다
+ * (신청 내용을 이미 검토했고 입금만 기다리던 경우).
+ */
+export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: string; note: string; approve?: boolean; now?: Date }): Promise<MutationResult> {
   assertPermission(p.actor, "applications.review");
   const now = p.now ?? new Date();
   return withApplication(db, null, p.applicationId, async (tx, app) => {
@@ -120,9 +123,20 @@ export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: s
     const [hold] = await tx.select().from(slotOccupancies).where(and(eq(slotOccupancies.applicationId, app.id), eq(slotOccupancies.kind, "pending_payment"))).for("update");
     if (!hold) throw new TransitionError("입금 기한이 지나 일정이 풀렸습니다. 신청자에게 다시 신청하도록 안내하세요.");
     await tx.update(payments).set({ status: "paid", paidAt: now, providerRaw: { manual: true, note, confirmedBy: p.actor.id } }).where(eq(payments.id, pay.id));
-    await tx.update(slotOccupancies).set({ kind: "held", expiresAt: null }).where(eq(slotOccupancies.id, hold.id));
-    await transition(tx, app, "submitted", { actorType: "admin", actorId: p.actor.id, reason: `입금 확인: ${note}`, patch: { paidAt: now }, ip: p.actor.ip });
-    await enqueueApplicationNotification(tx, "submitted", app.id);
+    await tx.update(slotOccupancies).set({ kind: p.approve ? "confirmed" : "held", expiresAt: null }).where(eq(slotOccupancies.id, hold.id));
+    const submitted = await transition(tx, app, "submitted", { actorType: "admin", actorId: p.actor.id, reason: `입금 확인: ${note}`, patch: { paidAt: now }, ip: p.actor.ip });
+    if (p.approve) {
+      await transition(tx, submitted, "confirmed", {
+        actorType: "admin",
+        actorId: p.actor.id,
+        reason: "입금 확인과 함께 승인",
+        patch: { decidedAt: now, decidedBy: p.actor.id },
+        ip: p.actor.ip,
+      });
+      await enqueueApplicationNotification(tx, "approved", app.id);
+    } else {
+      await enqueueApplicationNotification(tx, "submitted", app.id);
+    }
   });
 }
 

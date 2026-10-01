@@ -4,17 +4,22 @@ import { formatMinutes, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import { describeRefundTiers } from "@/domain/refund/tiers";
 import { getPublicInfo } from "@/server/booking/public-data";
+import { effectivePaymentMethod } from "@/server/payments/gateway";
 import { db } from "@/server/db/client";
 
 export const dynamic = "force-dynamic";
 
 export default async function GuidePage() {
   const { settings: s, spaces, fee, discounts } = await getPublicInfo(db);
+  const bank = effectivePaymentMethod(s["payment.method"]) === "bankTransfer";
+  const word = bank ? "입금" : "결제";
   const steps = [
     { title: "공간·일정 선택", body: "공간과 날짜·시간을 고르면 신청 조건을 바로 확인하고 예상 금액을 보여 드립니다." },
-    { title: "신청정보 입력·결제", body: "단체·행사 정보를 입력하고 규정에 동의한 뒤 결제하면 신청이 접수됩니다." },
+    bank
+      ? { title: "신청정보 입력·입금", body: `단체·행사 정보를 입력하고 규정에 동의해 신청한 뒤, 안내받은 계좌로 ${s["payment.bankTransferHoldHours"]}시간 안에 입금합니다. 담당자가 입금을 확인하면 신청이 접수됩니다.` }
+      : { title: "신청정보 입력·결제", body: "단체·행사 정보를 입력하고 규정에 동의한 뒤 결제하면 신청이 접수됩니다." },
     { title: "관리자 심사", body: `담당자가 ${s["operation.reviewPeriodText"]} 안에 심사합니다. 보완이 필요하면 연락드립니다.` },
-    { title: "예약확정", body: "승인되면 예약이 확정됩니다. 반려되면 결제 금액 전액을 자동으로 환불합니다." },
+    { title: "예약확정", body: `승인되면 예약이 확정됩니다. 반려되면 ${word} 금액 전액을 ${bank ? "돌려드립니다" : "자동으로 환불합니다"}.` },
   ];
 
   return (
@@ -29,7 +34,7 @@ export default async function GuidePage() {
               <span className="text-[#e98b6f]">이어지는 공간</span>
             </h1>
             <p className="mt-5 max-w-xl text-white/85">
-              전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 결제 후 담당자 심사를 거쳐 확정됩니다.
+              전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 {word} 후 담당자 심사를 거쳐 확정됩니다.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/apply" className="btn-primary px-6 py-3 text-base">
@@ -100,7 +105,7 @@ export default async function GuidePage() {
           <div className="rounded-lg border border-line bg-white p-5">
             <h2 className="font-serif text-xl text-navy">취소·환불 기준</h2>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm">
-              <li>심사에서 반려되면 결제 금액 전액을 환불합니다.</li>
+              <li>심사에서 반려되면 {word} 금액 전액을 환불합니다.</li>
               <li>승인 전에 신청을 철회하면 {s["payment.withdrawRefundPercent"]}%를 환불합니다.</li>
               <li>예약확정 후 취소: {describeRefundTiers(s["payment.refundTiers"])}</li>
               <li>기념관 사정으로 취소되면 전액 환불합니다.</li>

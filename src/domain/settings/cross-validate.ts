@@ -34,13 +34,6 @@ const rules: Rule[] = [
           message: "동절기 시작일과 종료일이 같을 수 없습니다.",
         },
   (v) =>
-    v["payment.method"] !== "bankTransfer" || v["payment.bankAccountInfo"].trim() !== ""
-      ? null
-      : {
-          keys: ["payment.method", "payment.bankAccountInfo"],
-          message: "계좌이체 방식을 쓰려면 입금 계좌 안내를 입력해야 합니다.",
-        },
-  (v) =>
     v["notification.paymentDeadlineHours"] < v["payment.bankTransferHoldHours"]
       ? null
       : {

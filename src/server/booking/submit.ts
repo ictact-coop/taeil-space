@@ -25,6 +25,8 @@ import { tstzRange } from "@/server/calendar/block-service";
 import { hashToken } from "./attachments";
 import { occupancyRange } from "./availability";
 import { findSpace, listActiveDiscounts, loadBookingContext, loadBusyIntervals } from "./context";
+import { effectivePaymentMethod } from "@/server/payments/gateway";
+import { enqueueApplicationNotification, flushNotifications } from "@/server/notifications/queue";
 import { releaseExpiredOverlapping } from "./expire";
 
 export type SubmitResult =
@@ -144,7 +146,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
   const range = occupancyRange(space, input.date, input.startMinutes, input.endMinutes);
 
   try {
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // 같은 단체가 동시에 제출해 BR-03·04를 우회하지 못하게 단체 단위로 직렬화
       if (regNo) await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`org:${regNo}`}))`);
       await releaseExpiredOverlapping(tx, space.id, range.from, range.to, now);
@@ -224,7 +226,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
         discount: discount ? { name: discount.name, kind: discount.kind, value: discount.value } : null,
       });
       const free = price.total === 0;
-      const method = s["payment.method"];
+      const method = effectivePaymentMethod(s["payment.method"]);
       const expiresAt = free
         ? null
         : new Date(now.getTime() + (method === "pg" ? s["payment.pgHoldMinutes"] * 60_000 : s["payment.bankTransferHoldHours"] * 3_600_000));
@@ -303,8 +305,12 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
         after: { applicationNo, status, total: price.total, date: input.date, start: input.start, end: input.end, spaceId: space.id },
         ip: meta.ip,
       });
+      // 계좌이체: 입금 안내 메일(신청자)과 입금 확인 요청(담당자)
+      if (!free && method === "bankTransfer") await enqueueApplicationNotification(tx, "awaiting_deposit", app!.id);
       return { ok: true, applicationNo, accessToken, status, total: price.total, expiresAt } as const;
     });
+    if (result.ok) await flushNotifications(db).catch(() => undefined);
+    return result;
   } catch (e) {
     if (pgErrorCode(e) === "23P01") {
       return { ok: false, formError: "방금 다른 신청이 먼저 이 시간을 선택했습니다. 다른 시간을 골라 주세요.", fieldErrors: { time: "이미 선택된 시간입니다." } };

@@ -1,12 +1,12 @@
 import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
-import { applicationStatusHistory, applications, attachments, organizations, payments, refunds, spaces, adminUsers } from "@/server/db/schema";
+import { applicationStatusHistory, applications, attachments, organizations, payments, refunds, slotOccupancies, spaces, adminUsers } from "@/server/db/schema";
 import type { DbOrTx } from "@/server/db/types";
 import type { ApplicationStatus } from "./transition";
 
 export const statusTabs: { key: string; label: string; statuses: ApplicationStatus[] }[] = [
   { key: "todo", label: "처리 필요", statuses: ["submitted", "reviewing"] },
   { key: "revision", label: "보완요청", statuses: ["revision_requested"] },
-  { key: "pending", label: "결제대기", statuses: ["pending_payment"] },
+  { key: "pending", label: "입금·결제 대기", statuses: ["pending_payment"] },
   { key: "confirmed", label: "예약확정", statuses: ["confirmed"] },
   { key: "closed", label: "종료", statuses: ["rejected", "withdrawn", "payment_expired", "closed_revision_expired", "cancelled", "refunded", "completed"] },
   { key: "all", label: "전체", statuses: [] },
@@ -48,7 +48,7 @@ export async function getApplicationForAdmin(db: DbOrTx, applicationNo: string) 
     .where(eq(applications.applicationNo, applicationNo));
   if (!row) return null;
   const id = row.app.id;
-  const [files, history, paymentRows, refundRows] = await Promise.all([
+  const [files, history, paymentRows, refundRows, holdRows] = await Promise.all([
     db.select().from(attachments).where(eq(attachments.applicationId, id)).orderBy(asc(attachments.createdAt)),
     db
       .select({ h: applicationStatusHistory, actorName: adminUsers.name })
@@ -59,8 +59,14 @@ export async function getApplicationForAdmin(db: DbOrTx, applicationNo: string) 
       .orderBy(asc(applicationStatusHistory.id)),
     db.select().from(payments).where(eq(payments.applicationId, id)).orderBy(asc(payments.createdAt)),
     db.select().from(refunds).where(eq(refunds.applicationId, id)).orderBy(asc(refunds.createdAt)),
+    db
+      .select({ expiresAt: slotOccupancies.expiresAt })
+      .from(slotOccupancies)
+      .where(and(eq(slotOccupancies.applicationId, id), eq(slotOccupancies.kind, "pending_payment"))),
   ]);
-  return { ...row, files, history, payments: paymentRows, refunds: refundRows };
+  /** 결제(입금) 기한: 결제대기 상태에서 일정을 잡아 둔 기한 */
+  const holdExpiresAt = holdRows[0]?.expiresAt ?? null;
+  return { ...row, files, history, payments: paymentRows, refunds: refundRows, holdExpiresAt };
 }
 
 /** 환불 처리 목록: 수동 처리 대기(계좌이체)와 재처리 필요(실패) */

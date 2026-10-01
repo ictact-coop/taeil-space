@@ -13,6 +13,7 @@ import { writeAudit } from "@/server/audit/log";
 import type { Actor } from "@/server/actor";
 import { sameJson } from "@/lib/stable-json";
 import { adminUsers, policyValues } from "@/server/db/schema";
+import { getGateway } from "@/server/payments/gateway";
 import type { Db, DbOrTx } from "@/server/db/types";
 
 export type SettingsActor = Actor;
@@ -184,7 +185,9 @@ export async function saveSettingChanges(
     }
     const result = getDefinition(key).parse(raw);
     if (!result.ok) fieldErrors[key] = result.error;
-    else parsed.push({ key, value: result.value });
+    else if (key === "payment.method" && result.value === "pg" && !getGateway()) {
+      fieldErrors[key] = "온라인 결제(PG)는 PortOne 연동 키를 서버에 설정한 뒤 선택할 수 있습니다. 그전까지는 계좌이체로 운영합니다.";
+    } else parsed.push({ key, value: result.value });
   }
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 

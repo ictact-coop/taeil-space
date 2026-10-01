@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card, Notice, PageHeader, ResultNotice } from "@/components/admin/ui";
 import { requireAdmin } from "@/server/auth/current";
-import { listGrades } from "@/server/auth/grades";
+import { CLUB_GRADE_CODE, listGrades } from "@/server/auth/grades";
 import { db } from "@/server/db/client";
 import { deleteGradeAction, updateGradeAction } from "../actions";
 import { GradeForm } from "../grade-form";
@@ -27,6 +27,11 @@ export default async function GradeDetailPage({ params, searchParams }: { params
           description={grade.description}
           permissions={grade.permissions}
           isSuper={grade.isSuper}
+          fixedNotice={
+            grade.code === CLUB_GRADE_CODE
+              ? "동아리 운영자 등급은 '대관 일정 조회'만 할 수 있도록 고정되어 있습니다. 캘린더에서 시간·공간과 예약 여부만 보이고, 단체명과 신청자 정보는 보이지 않습니다. 더 많은 권한이 필요한 외부 사용자는 새 등급을 만들어 지정하세요."
+              : undefined
+          }
           submitLabel="저장"
         />
       </Card>

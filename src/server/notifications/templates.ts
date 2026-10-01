@@ -9,7 +9,11 @@ export type NotificationEvent =
   | "approved"
   | "withdrawn"
   | "refunded"
-  | "payment_expired";
+  | "payment_expired"
+  /** 계좌이체: 신청 직후 입금 안내 */
+  | "awaiting_deposit"
+  /** 계좌이체: 입금 기한 임박 */
+  | "deposit_reminder";
 
 export interface MessageContext {
   applicationNo: string;
@@ -24,7 +28,16 @@ export interface MessageContext {
   revisionMessage?: string | null;
   revisionDeadline?: string | null;
   refundAmount?: number | null;
+  /** 결제 방식 (문구를 고르는 데 쓴다) */
+  method?: "pg" | "bank_transfer" | "free" | null;
+  /** 계좌이체 입금 계좌 안내 (설정값) */
+  bankAccountInfo?: string | null;
+  /** 계좌이체 입금 기한 (표시용 문자열) */
+  depositDeadline?: string | null;
 }
+
+const isBank = (c: MessageContext) => c.method === "bank_transfer";
+const payWord = (c: MessageContext) => (isBank(c) ? "입금" : "결제");
 
 const footer = "\n\n전태일기념관 대관 담당 · 02-318-0903~4\n이 메일은 발신 전용입니다.";
 
@@ -34,17 +47,17 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
     case "submitted":
       return {
         subject: `[전태일기념관] 대관 신청이 접수되었습니다 (${c.applicationNo})`,
-        body: `${head}\n결제 금액: ${formatWon(c.total)}\n\n결제가 확인되어 신청이 접수되었습니다. 담당자 심사에 ${c.reviewPeriod}이 걸리며, 결과를 다시 알려 드립니다.\n심사에서 반려되면 결제 금액 전액을 환불합니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n${payWord(c)} 금액: ${formatWon(c.total)}\n\n${c.method === "free" ? "결제할 금액이 없어 신청이 바로 접수되었습니다." : `${payWord(c)}이 확인되어 신청이 접수되었습니다.`} 담당자 심사에 ${c.reviewPeriod}이 걸리며, 결과를 다시 알려 드립니다.${c.total > 0 ? `\n심사에서 반려되면 ${payWord(c)} 금액 전액을 환불합니다.` : ""}\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "revision_requested":
       return {
         subject: `[전태일기념관] 신청 내용 보완을 요청드립니다 (${c.applicationNo})`,
-        body: `${head}\n\n담당자가 아래 내용의 보완을 요청했습니다.\n\n${c.revisionMessage ?? ""}\n\n제출 기한: ${c.revisionDeadline}\n기한까지 보완하지 않으면 신청이 종료되고 결제 금액은 전액 환불됩니다.\n\n보완하기: ${c.myUrl}${footer}`,
+        body: `${head}\n\n담당자가 아래 내용의 보완을 요청했습니다.\n\n${c.revisionMessage ?? ""}\n\n제출 기한: ${c.revisionDeadline}\n기한까지 보완하지 않으면 신청이 종료되고 ${payWord(c)} 금액은 전액 환불됩니다.\n\n보완하기: ${c.myUrl}${footer}`,
       };
     case "rejected":
       return {
         subject: `[전태일기념관] 대관 신청 심사 결과 안내 (${c.applicationNo})`,
-        body: `${head}\n\n아쉽게도 이번 신청은 승인되지 않았습니다.\n사유: ${c.reason ?? ""}\n\n결제 금액 ${formatWon(c.total)}은 전액 환불 처리됩니다. 카드 결제는 카드사 사정에 따라 환불 확인까지 며칠이 걸릴 수 있습니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n\n아쉽게도 이번 신청은 승인되지 않았습니다.\n사유: ${c.reason ?? ""}${c.total > 0 ? `\n\n${payWord(c)} 금액 ${formatWon(c.total)}은 전액 환불 처리됩니다. ${isBank(c) ? "담당자가 입금하신 계좌로 돌려드리며, 계좌 확인을 위해 연락드릴 수 있습니다." : "카드 결제는 카드사 사정에 따라 환불 확인까지 며칠이 걸릴 수 있습니다."}` : ""}\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "approved":
       return {
@@ -63,8 +76,18 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
       };
     case "payment_expired":
       return {
-        subject: `[전태일기념관] 결제 기한이 지나 신청이 취소되었습니다 (${c.applicationNo})`,
-        body: `${head}\n\n결제 기한 안에 결제가 확인되지 않아 신청이 자동 취소되었습니다. 필요하면 다시 신청해 주세요.${footer}`,
+        subject: `[전태일기념관] ${payWord(c)} 기한이 지나 신청이 취소되었습니다 (${c.applicationNo})`,
+        body: `${head}\n\n${payWord(c)} 기한 안에 ${payWord(c)}이 확인되지 않아 신청이 자동 취소되었고, 잡아 두었던 일정은 다시 열렸습니다.${isBank(c) ? " 기한이 지난 뒤 입금하셨다면 기념관으로 연락해 주세요. 확인 후 돌려드립니다." : ""} 필요하면 다시 신청해 주세요.${footer}`,
+      };
+    case "awaiting_deposit":
+      return {
+        subject: `[전태일기념관] 대관 신청을 받았습니다. 입금해 주세요 (${c.applicationNo})`,
+        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}\n입금자명에 신청번호(${c.applicationNo})를 적어 주세요.\n\n입금 기한까지 이 일정은 다른 신청자가 고를 수 없도록 잡아 두었습니다. 담당자가 입금을 확인하면 신청이 접수되고 심사를 시작합니다.\n기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+      };
+    case "deposit_reminder":
+      return {
+        subject: `[전태일기념관] 입금 기한이 곧 끝납니다 (${c.applicationNo})`,
+        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}\n입금자명에 신청번호(${c.applicationNo})를 적어 주세요.\n\n이미 입금하셨다면 담당자가 확인하는 중이니 기다려 주세요. 기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "revision_submitted":
       return { subject: `[전태일기념관] 보완 내용이 제출되었습니다 (${c.applicationNo})`, body: `${head}\n\n보완 내용이 제출되어 다시 심사합니다.${footer}` };
@@ -72,11 +95,17 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
 }
 
 export function staffMessage(event: NotificationEvent, c: MessageContext): { subject: string; body: string } | null {
-  const label = { submitted: "새 대관 신청 접수", withdrawn: "신청 철회", revision_submitted: "보완 제출" } as Partial<Record<NotificationEvent, string>>;
+  const label = {
+    // 계좌이체는 신청 직후(입금 확인 필요) 알리고, 입금 확인은 담당자가 직접 하므로 다시 알리지 않는다
+    submitted: c.method === "bank_transfer" ? undefined : "새 대관 신청 접수",
+    awaiting_deposit: "새 대관 신청(입금 확인 필요)",
+    withdrawn: "신청 철회",
+    revision_submitted: "보완 제출",
+  } as Partial<Record<NotificationEvent, string>>;
   const title = label[event];
   if (!title) return null;
   return {
     subject: `[대관관리] ${title}: ${c.applicationNo} ${c.orgName}`,
-    body: `${title}\n\n신청번호: ${c.applicationNo}\n단체: ${c.orgName}\n공간: ${c.spaceName}\n일시: ${c.when}\n금액: ${formatWon(c.total)}\n\n관리자 화면에서 확인하세요.`,
+    body: `${title}\n\n신청번호: ${c.applicationNo}\n단체: ${c.orgName}\n공간: ${c.spaceName}\n일시: ${c.when}\n금액: ${formatWon(c.total)}${event === "awaiting_deposit" ? `\n입금 기한: ${c.depositDeadline ?? ""}\n\n통장에서 입금(입금자명에 신청번호)을 확인한 뒤 관리자 화면에서 '입금 확인'을 누르세요.` : "\n\n관리자 화면에서 확인하세요."}`,
   };
 }

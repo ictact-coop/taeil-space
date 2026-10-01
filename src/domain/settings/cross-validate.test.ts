@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { crossValidate } from "./cross-validate";
 import { resolveAll } from "./resolve";
-import type { SettingValues } from "./definitions";
+import { getDefinition, type SettingValues } from "./definitions";
 
 const defaults = () => resolveAll([], new Date()).values;
 const withValues = (overrides: Partial<SettingValues>): SettingValues => ({ ...defaults(), ...overrides });
@@ -21,11 +21,10 @@ describe("crossValidate", () => {
     expect(crossValidate(withValues({ "operation.nightEnd": "17:00" }))).toHaveLength(1);
   });
 
-  it("계좌이체 방식에는 입금 계좌 안내가 필요하다", () => {
-    expect(crossValidate(withValues({ "payment.method": "bankTransfer" }))[0]?.keys).toContain("payment.bankAccountInfo");
-    expect(
-      crossValidate(withValues({ "payment.method": "bankTransfer", "payment.bankAccountInfo": "○○은행 000-00" })),
-    ).toEqual([]);
+  it("기본 결제 방식은 계좌이체 (PG 연동 전)", () => {
+    expect(defaults()["payment.method"]).toBe("bankTransfer");
+    // 입금 계좌는 교차 검증 대신 오픈 준비 점검의 필수 항목으로 확인한다
+    expect(getDefinition("payment.bankAccountInfo").requiredBeforeOpen).toBe(true);
   });
 
   it("입금 기한 임박 알림은 입금 기한보다 짧아야 한다", () => {

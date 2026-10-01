@@ -16,6 +16,7 @@ export function GradeForm({
   description = "",
   permissions = [],
   isSuper = false,
+  fixedNotice,
   submitLabel,
 }: {
   action: Action;
@@ -23,6 +24,8 @@ export function GradeForm({
   description?: string;
   permissions?: readonly string[];
   isSuper?: boolean;
+  /** 권한을 바꿀 수 없는 등급의 안내 (최고 관리자가 아닌 고정 등급) */
+  fixedNotice?: string;
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, { version: 0 });
@@ -49,6 +52,8 @@ export function GradeForm({
         <legend className="mb-2 text-sm font-medium">권한</legend>
         {isSuper ? (
           <Notice kind="info">시스템 최고 관리자 등급은 모든 권한을 가집니다. 나중에 새 기능이 생겨도 자동으로 포함됩니다.</Notice>
+        ) : fixedNotice ? (
+          <Notice kind="info">{fixedNotice}</Notice>
         ) : (
           groups.map((group) => (
             <div key={group} className="rounded border border-line p-3">

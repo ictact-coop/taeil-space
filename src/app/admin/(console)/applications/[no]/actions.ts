@@ -42,7 +42,10 @@ export async function approveAction(no: string, id: string, f: FormData): Promis
   await run(no, "승인했습니다. 예약이 확정되었습니다.", (a) => approveApplication(db, { actor: actor(a), applicationId: id, note: s(f, "note") }));
 }
 export async function confirmDepositAction(no: string, id: string, f: FormData): Promise<void> {
-  await run(no, "입금을 확인했습니다. 신청이 접수되었습니다.", (a) => confirmDeposit(db, { actor: actor(a), applicationId: id, note: s(f, "note") }));
+  const approve = f.get("approve") === "yes";
+  await run(no, approve ? "입금을 확인하고 승인했습니다. 예약이 확정되었습니다." : "입금을 확인했습니다. 신청이 접수되었습니다. 검토 후 승인하세요.", (a) =>
+    confirmDeposit(db, { actor: actor(a), applicationId: id, note: s(f, "note"), approve }),
+  );
 }
 export async function addNoteAction(no: string, id: string, f: FormData): Promise<void> {
   await run(no, "메모를 남겼습니다.", (a) => addNote(db, { actor: actor(a), applicationId: id, body: s(f, "body") }));

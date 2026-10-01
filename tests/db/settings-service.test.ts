@@ -13,6 +13,7 @@ import {
   type SettingsActor,
 } from "@/server/settings/service";
 import { sql } from "drizzle-orm";
+import { setGatewayForTest } from "@/server/payments/gateway";
 import { createTestAdmin, hasTestDb, resetTestDb } from "../helpers/db";
 
 describe.skipIf(!hasTestDb)("설정 서비스", () => {
@@ -83,24 +84,36 @@ describe.skipIf(!hasTestDb)("설정 서비스", () => {
   });
 
   it("여러 설정을 함께 보는 검증을 통과해야 저장된다", async () => {
+    // 입금 기한(24시간)보다 늦게 알림을 보내도록 바꾸면 거부
     const result = await saveSettingChanges(db, {
       actor: system,
-      rawValues: { "payment.method": "bankTransfer" },
+      rawValues: { "notification.paymentDeadlineHours": "30" },
       effectiveFrom: now,
-      reason: "PG 계약 전 계좌이체로 운영",
+      reason: "알림 시점 조정",
       now,
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.fieldErrors["payment.bankAccountInfo"]).toBeDefined();
+    if (!result.ok) expect(result.fieldErrors["payment.bankTransferHoldHours"] ?? result.fieldErrors["notification.paymentDeadlineHours"]).toBeDefined();
 
     const ok = await saveSettingChanges(db, {
       actor: system,
-      rawValues: { "payment.method": "bankTransfer", "payment.bankAccountInfo": "○○은행 000-000000-00 전태일재단" },
+      rawValues: { "notification.paymentDeadlineHours": "30", "payment.bankTransferHoldHours": "48" },
       effectiveFrom: now,
-      reason: "PG 계약 전 계좌이체로 운영",
+      reason: "입금 기한과 알림 시점 함께 조정",
       now,
     });
     expect(ok).toMatchObject({ ok: true });
+  });
+
+  it("PG 연동 키가 없으면 결제 방식을 PG로 바꿀 수 없다", async () => {
+    setGatewayForTest(null);
+    try {
+      const r = await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "pg" }, effectiveFrom: now, reason: "PG 전환", now });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.fieldErrors["payment.method"]).toContain("PortOne");
+    } finally {
+      setGatewayForTest(undefined);
+    }
   });
 
   it("권한이 없는 역할은 수정할 수 없다", async () => {

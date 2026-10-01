@@ -14,6 +14,7 @@ import type { Db } from "@/server/db/types";
 import { saveDiscountRule } from "@/server/pricing/discount-service";
 import { saveFeeSchedule } from "@/server/pricing/fee-service";
 import { setStorageForTest } from "@/server/storage/storage";
+import { saveSettingChanges } from "@/server/settings/service";
 import { createTestAdmin, createTestSpace, hasTestDb, resetTestDb } from "../helpers/db";
 
 const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(100, 32)]);
@@ -45,6 +46,9 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
       now: new Date("2026-10-01T00:00:00Z"),
     });
     expect(r.ok).toBe(true);
+    // 이 파일은 PG 결제 흐름을 본다 (기본값은 계좌이체)
+    const pg = await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "pg" }, effectiveFrom: new Date("2026-10-01T00:00:00Z"), reason: "PG 흐름 테스트", now: new Date("2026-10-01T00:00:00Z") });
+    expect(pg.ok).toBe(true);
   });
   afterAll(async () => {
     await close?.();

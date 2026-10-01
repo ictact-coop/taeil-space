@@ -4,6 +4,8 @@ import { isValidDateString } from "@/domain/calendar/closures";
 import { kstDateOf } from "@/lib/time";
 import { listPublicSpaces } from "@/server/booking/context";
 import { db } from "@/server/db/client";
+import { effectivePaymentMethod } from "@/server/payments/gateway";
+import { getSettings } from "@/server/settings/service";
 import { BookingPicker } from "./booking-picker";
 
 export const metadata: Metadata = { title: "대관 신청" };
@@ -11,7 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function ApplyPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
-  const spaces = await listPublicSpaces(db);
+  const [spaces, settings] = await Promise.all([listPublicSpaces(db), getSettings(db)]);
+  const payLabel = effectivePaymentMethod(settings["payment.method"]) === "bankTransfer" ? "입금" : "결제";
   const selected = spaces.find((s) => s.code === q.space) ?? null;
   const time = (v?: string) => (v && /^\d{2}:\d{2}$/.test(v) ? v : null);
   return (
@@ -19,7 +22,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
       <p className="text-xs font-semibold text-brick">대관 신청</p>
       <h1 className="mt-1 font-serif text-3xl text-navy">공간과 날짜를 선택해 주세요</h1>
       <div className="my-6">
-        <Steps current={1} />
+        <Steps current={1} payLabel={payLabel} />
       </div>
       <BookingPicker
         spaces={spaces.map((s) => ({

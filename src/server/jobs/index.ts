@@ -2,6 +2,7 @@ import { PgBoss } from "pg-boss";
 import { expireRevisions } from "@/server/applications/applicant-actions";
 import { purgeExpiredSessions } from "@/server/auth/service";
 import { purgeOrphanAttachments } from "@/server/booking/attachments";
+import { sendDepositReminders } from "@/server/booking/deposit-reminder";
 import { expirePendingApplications } from "@/server/booking/expire";
 import type { Db } from "@/server/db/types";
 import { flushNotifications } from "@/server/notifications/queue";
@@ -25,6 +26,7 @@ export const jobs = {
     },
   },
   "retry-refunds": { cron: "*/2 * * * *", run: (db: Db) => processPendingRefunds(db, getGateway()) },
+  "deposit-reminders": { cron: "*/10 * * * *", run: (db: Db) => sendDepositReminders(db) },
   "expire-revisions": { cron: "*/10 * * * *", run: (db: Db) => expireRevisions(db, getGateway()) },
   "purge-orphan-attachments": { cron: "17 * * * *", run: (db: Db) => purgeOrphanAttachments(db, new Date(Date.now() - 24 * 3600_000)) },
   "purge-expired-sessions": { cron: "23 * * * *", run: async (db: Db) => (await purgeExpiredSessions(db), 0) },

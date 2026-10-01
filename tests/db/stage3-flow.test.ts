@@ -9,13 +9,14 @@ import { expireRevisions, submitRevision, withdrawApplication } from "@/server/a
 import { approveApplication, confirmDeposit, rejectApplication, requestRevision, reviewChecks, startReview } from "@/server/applications/review";
 import { PermissionError } from "@/server/auth/permissions";
 import { newUploadToken } from "@/server/booking/attachments";
+import { sendDepositReminders } from "@/server/booking/deposit-reminder";
 import { expirePendingApplications } from "@/server/booking/expire";
 import { submitApplication } from "@/server/booking/submit";
 import { applications, notificationLogs, payments, refunds, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
 import { memoryOutbox } from "@/server/notifications/mailer";
 import { flushNotifications } from "@/server/notifications/queue";
-import { FakeGateway } from "@/server/payments/gateway";
+import { FakeGateway, setGatewayForTest } from "@/server/payments/gateway";
 import { completeManualRefund, MAX_REFUND_ATTEMPTS, processRefund, retryRefund } from "@/server/payments/refunds";
 import { confirmPayment, prepareCheckout, reconcilePayments } from "@/server/payments/service";
 import { saveFeeSchedule } from "@/server/pricing/fee-service";
@@ -49,7 +50,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     const fee = { baseMinutes: 180, baseFee: 60000, extraUnitMinutes: 60, extraFee: 20000, nightFeePerHour: 10000 };
     await saveFeeSchedule(db, { actor: system, items: { spaces: { [room.id]: fee }, options: [] }, effectiveFrom: new Date("2026-10-01T00:00:00Z"), reason: "요금", now: new Date("2026-10-01T00:00:00Z") });
     // 알림 대기열은 실제 시계로 설정을 읽으므로 과거 시각부터 적용한다
-    await saveSettingChanges(db, { actor: system, rawValues: { "notification.staffEmails": "staff@taeil.org" }, effectiveFrom: new Date("2026-01-01T00:00:00Z"), reason: "담당자", now: new Date("2026-01-01T00:00:00Z") });
+    await saveSettingChanges(db, { actor: system, rawValues: { "notification.staffEmails": "staff@taeil.org", "payment.method": "pg" }, effectiveFrom: new Date("2026-01-01T00:00:00Z"), reason: "담당자·PG 흐름 테스트", now: new Date("2026-01-01T00:00:00Z") });
   });
   afterAll(async () => {
     await close?.();
@@ -221,6 +222,54 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     expect(await completeManualRefund(db, { actor: accounting, refundId: r!.id, note: "국민 123-45 홍길동, 10/30 이체" })).toEqual({ ok: true });
     expect((await refundsOf(s.app.id))[0]).toMatchObject({ status: "succeeded", manualNote: "국민 123-45 홍길동, 10/30 이체" });
     await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "pg" }, effectiveFrom: new Date(t0.getTime() + 2000), reason: "PG 복귀", now: new Date(t0.getTime() + 2000) });
+  });
+
+  it("계좌이체(결제 없이 운영): 신청 즉시 입금 안내, 기한 임박 알림 한 번, 입금 확인과 함께 승인", async () => {
+    const t1 = new Date("2026-10-29T03:00:00Z");
+    await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "bankTransfer", "payment.bankAccountInfo": "농협 301-0000-0000-00 전태일재단" }, effectiveFrom: t1, reason: "계좌이체 운영", now: t1 });
+    const at = new Date(t1.getTime() + 1000);
+    const s = await submit("deposit@example.org", at);
+    expect(s.app.status).toBe("pending_payment");
+    expect(s.pay.method).toBe("bank_transfer");
+
+    const logs = await db.select().from(notificationLogs).where(eq(notificationLogs.applicationId, s.app.id));
+    const mail = logs.find((l) => l.event === "awaiting_deposit" && l.channel === "email");
+    expect(mail?.recipient).toBe("deposit@example.org");
+    expect(mail?.body).toContain("농협 301-0000-0000-00");
+    expect(mail?.body).toContain(s.no);
+    expect(mail?.body).toMatch(/입금 기한: \d{4}\. \d{2}\. \d{2}\. \d{2}:\d{2}까지/);
+    expect(logs.some((l) => l.event === "staff:awaiting_deposit" && l.recipient === "staff@taeil.org")).toBe(true);
+
+    // 입금 기한 24시간, 알림 3시간 전 → 21시간 뒤에는 아직, 21.5시간 뒤 한 번
+    expect(await sendDepositReminders(db, new Date(at.getTime() + 20 * 3_600_000))).toBe(0);
+    expect(await sendDepositReminders(db, new Date(at.getTime() + 21.5 * 3_600_000))).toBe(1);
+    expect(await sendDepositReminders(db, new Date(at.getTime() + 22 * 3_600_000))).toBe(0);
+    const reminder = (await db.select().from(notificationLogs).where(eq(notificationLogs.applicationId, s.app.id))).find((l) => l.event === "deposit_reminder" && l.channel === "email");
+    expect(reminder?.subject).toContain("입금 기한");
+
+    // 입금 확인과 함께 승인 → 바로 예약확정
+    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, note: "전태일 10/29 15:00", approve: true, now: at })).toEqual({ ok: true });
+    const app = await appOf(s.app.id);
+    expect(app.status).toBe("confirmed");
+    const [occ] = await db.select().from(slotOccupancies).where(eq(slotOccupancies.applicationId, s.app.id));
+    expect(occ).toMatchObject({ kind: "confirmed", expiresAt: null });
+    const after = await db.select().from(notificationLogs).where(eq(notificationLogs.applicationId, s.app.id));
+    expect(after.some((l) => l.event === "approved")).toBe(true);
+    expect(after.some((l) => l.event === "submitted")).toBe(false);
+    // 동아리 운영자처럼 심사 권한이 없으면 입금 확인 불가
+    const club = (await createTestAdmin(db, "club")).actor;
+    await expect(confirmDeposit(db, { actor: club, applicationId: s.app.id, note: "x x", now: at })).rejects.toBeInstanceOf(PermissionError);
+    await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "pg" }, effectiveFrom: new Date(t1.getTime() + 2000), reason: "PG 복귀", now: new Date(t1.getTime() + 2000) });
+  });
+
+  it("PG를 골라 두었어도 연동 키가 없으면 계좌이체로 받는다", async () => {
+    setGatewayForTest(null);
+    try {
+      const s = await submit("nokey@example.org");
+      expect(s.pay.method).toBe("bank_transfer");
+    } finally {
+      setGatewayForTest(gateway);
+    }
   });
 
   it("PG 환불이 계속 실패하면 재처리 목록으로 보내고, 다시 시도할 수 있다", async () => {

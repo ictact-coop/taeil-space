@@ -254,12 +254,24 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
               <div className="flex flex-col gap-4">
                 {pendingBank && (
                   <form action={b(confirmDepositAction, app.applicationNo, app.id)} className="flex flex-col gap-2">
-                    <label className="text-sm font-medium">
-                      입금 확인 (계좌이체)
-                      <input name="note" required placeholder="입금자명·입금일시" className="input mt-1" />
+                    <p className="text-sm font-medium">입금 확인 (계좌이체)</p>
+                    <p className="text-xs text-muted">
+                      통장에서 {formatWon(app.totalAmount ?? 0)} 입금(입금자명에 신청번호 {app.applicationNo})을 확인한 뒤 누르세요.
+                      {data.holdExpiresAt && ` 입금 기한: ${formatKst(data.holdExpiresAt)}`}
+                    </p>
+                    <label className="text-sm">
+                      <span className="sr-only">입금 확인 내용</span>
+                      <input name="note" required placeholder="입금자명·입금일시 (예: 홍길동 10/2 14:10)" className="input mt-1" />
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input type="checkbox" name="approve" value="yes" className="mt-1" />
+                      <span>
+                        입금 확인과 함께 승인(예약확정)
+                        <span className="block text-xs text-muted">신청 내용을 이미 검토했다면 체크하세요. 체크하지 않으면 신청접수 상태가 되고, 검토 후 승인합니다.</span>
+                      </span>
                     </label>
                     <button type="submit" className="btn-primary">
-                      입금 확인 → 신청접수
+                      입금 확인
                     </button>
                   </form>
                 )}

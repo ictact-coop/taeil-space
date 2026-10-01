@@ -42,7 +42,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <Stat label="신규 신청(결제 완료)" value={d.newApplications} href="/admin/applications?tab=todo" />
               <Stat label="검토중" value={d.reviewing} href="/admin/applications?tab=todo" />
               <Stat label="보완요청 중" value={d.revision} href="/admin/applications?tab=revision" />
-              <Stat label="결제대기" value={d.pendingPayment} href="/admin/applications?tab=pending" />
+              <Stat label="입금·결제 대기" value={d.pendingPayment} href="/admin/applications?tab=pending" />
               <Stat label={`심사 지연(${d.delayDays}일 이상)`} value={d.delayed} href="/admin/applications?tab=todo" tone="alert" />
             </>
           )}
@@ -78,9 +78,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     {t.orgName} · {t.eventTitle}
                   </Link>
                 ) : (
-                  <span>
-                    {t.orgName} · {t.eventTitle}
-                  </span>
+                  <span className="text-muted">{t.status === "confirmed" ? "예약" : "신청 진행 중"}</span>
                 )}
                 <StatusBadge status={t.status} />
               </li>

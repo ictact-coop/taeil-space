@@ -17,6 +17,10 @@ export interface FormProps {
   attachment: { extensions: string[]; maxMb: number; maxCount: number };
   uploadToken: string;
   initialPrice: Price | null;
+  /** 계좌이체로 받는지 (PG 연동 전) */
+  bankTransfer: boolean;
+  /** 계좌이체 입금 기한(시간) */
+  depositHours: number;
 }
 
 interface Price {
@@ -382,7 +386,7 @@ function Body({
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-muted">결제 금액</p>
+              <p className="mt-3 text-xs text-muted">{props.bankTransfer ? "입금 금액" : "결제 금액"}</p>
               <p className="font-serif text-3xl text-brick">{won(price.total)}</p>
             </>
           ) : (
@@ -396,9 +400,13 @@ function Body({
             </ul>
           )}
         </div>
-        <p className="mt-4 text-xs text-muted">결제하면 신청이 접수되고, 담당자가 심사합니다. 반려되면 결제 금액 전액을 환불합니다.</p>
+        <p className="mt-4 text-xs text-muted">
+          {props.bankTransfer
+            ? `신청하면 입금 계좌를 안내해 드립니다. ${props.depositHours}시간 안에 입금하시면 담당자가 확인한 뒤 심사합니다. 반려되면 입금액 전액을 돌려드립니다.`
+            : "결제하면 신청이 접수되고, 담당자가 심사합니다. 반려되면 결제 금액 전액을 환불합니다."}
+        </p>
         <button type="submit" className="btn-primary mt-4 w-full" disabled={pending || uploading}>
-          {pending ? "제출 중…" : "신청하고 결제하기 →"}
+          {pending ? "제출 중…" : props.bankTransfer ? "신청하기 →" : "신청하고 결제하기 →"}
         </button>
       </aside>
     </form>

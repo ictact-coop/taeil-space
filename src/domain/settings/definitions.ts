@@ -234,9 +234,9 @@ export const settingDefinitions = {
     requiredBeforeOpen: true,
     group: "payment",
     label: "결제 방식",
-    description: "PG 계약 전에는 계좌이체로 운영하고, 계약 후 PG로 바꿉니다.",
+    description: "PG 연동 전에는 계좌이체로 운영합니다(신청 → 입금 → 담당자 입금 확인 → 심사·승인). PG는 PortOne 키를 설정한 뒤 선택할 수 있습니다.",
     refs: ["P-09"],
-    defaultValue: "pg",
+    defaultValue: "bankTransfer",
     options: [
       { value: "pg", label: "온라인 결제(PG)" },
       { value: "bankTransfer", label: "계좌이체(담당자 입금 확인)" },
@@ -264,6 +264,8 @@ export const settingDefinitions = {
     unit: "시간",
   }),
   "payment.bankAccountInfo": text({
+    // 계좌이체가 기본이므로 오픈 전에 꼭 채운다(비어 있으면 이용자에게 "따로 안내"로 보인다)
+    requiredBeforeOpen: true,
     group: "payment",
     label: "입금 계좌 안내",
     description: "계좌이체 방식일 때 신청자에게 보여줍니다. 예: ○○은행 000-000000-00 (예금주 전태일재단)",
@@ -309,12 +311,12 @@ export const settingDefinitions = {
   }),
 
   // ─── G. 알림 ───
-  "notification.submitted": notificationChannel("결제 완료·신청 접수", "both"),
+  "notification.submitted": notificationChannel("신청 접수(입금 안내·입금 확인)", "both"),
   "notification.revisionRequested": notificationChannel("보완 요청", "both"),
   "notification.rejected": notificationChannel("반려·환불", "email"),
   "notification.approved": notificationChannel("승인·예약확정", "both"),
   "notification.cancelled": notificationChannel("취소·환불 결과", "both"),
-  "notification.paymentDeadline": notificationChannel("입금 기한 임박(계좌이체)", "lms"),
+  "notification.paymentDeadline": notificationChannel("입금 기한 임박(계좌이체)", "both"),
   "notification.preUse": notificationChannel("이용 전 안내", "email"),
   "notification.paymentDeadlineHours": integer({
     group: "notification",
