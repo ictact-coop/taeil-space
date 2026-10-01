@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# 배포·업데이트. 서버의 /srv/taeil/deploy 에서 실행한다.
+#   ./deploy.sh             현재 브랜치의 최신 코드로 배포
+#   ./deploy.sh v1.0.0      태그·브랜치·커밋을 지정해 배포
+#   ./deploy.sh --no-pull   코드를 받지 않고 지금 작업 트리로 배포(리허설용)
+#   SKIP_BUILD=1 ./deploy.sh  이미 있는 APP_IMAGE로 배포(다른 곳에서 빌드한 이미지를 쓸 때)
+# 순서: 설정 검사 → 코드 받기 → 배포 전 백업 → 이미지 빌드 → 마이그레이션 → web·worker 교체 → 상태 확인.
+# 새 web이 정상(healthy)이 되지 않으면 직전 이미지로 되돌린다. 마이그레이션은 되돌리지 않으므로(추가 위주로 작성)
+# 데이터까지 되돌려야 하면 배포 전 백업을 restore.sh로 복구한다.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+REF="${1:-}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
+
+# 1. 설정 검사
+for k in SITE_DOMAIN APP_BASE_URL DATABASE_URL APP_ENCRYPTION_KEY; do
+  [ -n "$(env_get "$k")" ] || { echo "deploy/.env의 $k가 비어 있습니다." >&2; exit 1; }
+done
+if uses_local_db; then
+  pw="$(env_get LOCAL_DB_PASSWORD)"
+  [ -n "$pw" ] && [ "$pw" != "CHANGE_ME" ] || { echo "LOCAL_DB_PASSWORD를 설정하세요(DATABASE_URL의 비밀번호와 같게)." >&2; exit 1; }
+  [[ "$(env_get DATABASE_URL)" == *"@db:5432/"* ]] || echo "경고: localdb를 쓰는데 DATABASE_URL이 @db:5432를 가리키지 않습니다." >&2
+fi
+[ "$(env_get PAYMENT_FAKE)" != "1" ] || { echo "PAYMENT_FAKE=1은 운영에서 쓸 수 없습니다." >&2; exit 1; }
+
+# 2. 코드 받기
+cd "$DEPLOY_DIR/.."
+if [ "$REF" != "--no-pull" ]; then
+  git fetch --tags --prune origin
+  if [ -n "$REF" ]; then git checkout --quiet "$REF"; fi
+  if git symbolic-ref -q HEAD >/dev/null; then git pull --ff-only --quiet; fi
+fi
+VERSION="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+log "배포 버전: $VERSION ($(git log -1 --format=%s 2>/dev/null || true))"
+cd "$DEPLOY_DIR"
+
+# 3. 배포 전 백업 (처음 배포라 DB가 아직 없으면 건너뜀)
+if $COMPOSE ps --status running --services 2>/dev/null | grep -qx web; then
+  log "배포 전 백업"
+  ./backup.sh || { echo "백업에 실패했습니다. 원인을 확인한 뒤 다시 배포하세요(SKIP_BACKUP=1로 건너뛸 수 있음)." >&2; [ "${SKIP_BACKUP:-}" = "1" ] || exit 1; }
+fi
+
+# 4. 이미지 빌드. 되돌리기용으로 지금 실행 중인 web의 이미지를 :previous로 보관한다
+PREVIOUS="${APP_IMAGE%%:*}:previous"
+running_web="$($COMPOSE ps -q web 2>/dev/null || true)"
+if [ -n "$running_web" ]; then
+  docker tag "$(docker inspect --format '{{.Image}}' "$running_web")" "$PREVIOUS"
+fi
+if [ "${SKIP_BUILD:-}" = "1" ]; then
+  docker image inspect "$APP_IMAGE" >/dev/null 2>&1 || { echo "SKIP_BUILD=1인데 이미지 $APP_IMAGE가 없습니다." >&2; exit 1; }
+  log "빌드 건너뜀: $APP_IMAGE 사용"
+else
+  log "이미지 빌드"
+  $COMPOSE build migrate
+fi
+docker tag "$APP_IMAGE" "${APP_IMAGE%%:*}:$VERSION"
+
+# 5. 실행 (migrate가 먼저 돌고 끝나야 web·worker가 뜬다)
+log "마이그레이션과 서비스 교체"
+if ! $COMPOSE up -d --no-build --remove-orphans; then
+  echo "서비스 시작에 실패했습니다. 마이그레이션 로그:" >&2
+  $COMPOSE logs --tail=50 migrate >&2 || true
+  exit 1
+fi
+
+# 6. 상태 확인
+wait_healthy() { # wait_healthy 초 → 마지막 상태를 status에 남긴다
+  local deadline=$((SECONDS + $1)) cid
+  status="starting"
+  while [ $SECONDS -lt $deadline ]; do
+    cid="$($COMPOSE ps -q web)"
+    status="$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)"
+    [ "$status" = "healthy" ] && return 0
+    sleep 3
+  done
+  return 1
+}
+log "web 상태 확인(최대 ${HEALTH_TIMEOUT}초)"
+if ! wait_healthy "$HEALTH_TIMEOUT"; then
+  echo "새 버전이 정상 상태가 되지 않았습니다(상태: $status)." >&2
+  $COMPOSE logs --tail=60 web >&2 || true
+  if [ -n "$running_web" ] && docker image inspect "$PREVIOUS" >/dev/null 2>&1; then
+    echo "직전 이미지로 되돌립니다." >&2
+    docker tag "$PREVIOUS" "$APP_IMAGE"
+    $COMPOSE up -d --no-build --no-deps --force-recreate web worker
+    if wait_healthy "$HEALTH_TIMEOUT"; then
+      echo "되돌렸습니다(직전 버전이 정상 동작 중). 데이터까지 되돌려야 하면 restore.sh로 배포 전 백업을 복구하세요." >&2
+    else
+      echo "되돌린 버전도 정상 상태가 아닙니다(상태: $status). 로그를 확인하세요: $COMPOSE logs web" >&2
+    fi
+  fi
+  exit 1
+fi
+$COMPOSE ps
+log "배포 완료: $VERSION — https://$(env_get SITE_DOMAIN)/api/health"
+log "점검: $COMPOSE run --rm --no-deps web pnpm preflight"
+docker image prune -f --filter "until=720h" >/dev/null 2>&1 || true
