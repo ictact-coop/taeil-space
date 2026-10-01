@@ -4,7 +4,7 @@
 
 ## A. 서버와 도메인 — 10/23까지
 
-절차는 `docs/DEPLOYMENT.md` 2장을 따른다.
+절차는 `docs/DEPLOY_AWS.md`(AWS Lightsail, 단계별)와 `docs/DEPLOYMENT.md` 2장을 따른다.
 
 - [ ] 작업 브랜치를 검토해 `main`으로 합친다(서버는 `main`을 받는다). 필요하면 `v1.0.0` 태그를 만든다.
 - [ ] 운영 서버를 만든다(1장 권장 구성). 클라우드 방화벽은 22(관리자 IP만), 80, 443만 연다.
@@ -12,7 +12,7 @@
   - 시간대, 자동 보안 업데이트, 방화벽, Docker, `.env` 생성, 백업 cron까지 한 번에 된다.
 - [ ] 자동 생성된 `APP_ENCRYPTION_KEY`를 서버 밖 안전한 곳(비밀번호 관리자 등)에 보관한다. `.env` 전체도 보관한다.
 - [ ] 대관 도메인(예: `rent.taeil.org`)의 DNS A 레코드를 서버 IP로 지정한다.
-- [ ] `deploy/.env`의 `SITE_DOMAIN`, `ACME_EMAIL`, `APP_BASE_URL`, `EMAIL_FROM`, `SMTP_URL`을 채운다.
+- [ ] `deploy/.env`의 `SITE_DOMAIN`, `ACME_EMAIL`, `APP_BASE_URL`, `EMAIL_FROM`, `SMTP_USER`·`SMTP_PASS`, `BACKUP_S3_*`를 채운다(AWS는 `docs/DEPLOY_AWS.md` 7장).
 - [ ] `./deploy.sh`로 배포한다.
   - [ ] `https://<도메인>/api/health`가 `{"ok":true}`를 돌려준다.
   - [ ] 브라우저 주소창에 자물쇠가 표시된다.
@@ -27,7 +27,8 @@
 
 ## B. 메일 — 10/23까지
 
-- [ ] SMTP 계정을 받아 `.env`에 넣는다: `EMAIL_PROVIDER=smtp`, `EMAIL_FROM`, `SMTP_URL`.
+- [ ] Amazon SES에서 taeil.org 도메인을 인증하고(DKIM), 샌드박스 해제를 요청한다. 승인에 하루쯤 걸리므로 가장 먼저 한다(`docs/DEPLOY_AWS.md` 2장).
+- [ ] SES SMTP 자격 증명을 `.env`에 넣는다: `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`.
 - [ ] 발신 도메인에 SPF와 DKIM을 등록한다(메일 서비스가 안내하는 DNS 레코드). 그래야 스팸함으로 빠지지 않는다.
 - [ ] `pnpm mail:test --to <주소>`로 시험 메일을 보낸다. 그다음 **나의 대관**에서 담당자 메일로 확인 코드를 받아 본다. Gmail, 네이버, 다음 메일함에서 받은편지함에 들어오는지 확인한다.
 

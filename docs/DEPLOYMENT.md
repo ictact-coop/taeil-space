@@ -5,7 +5,10 @@
 
 ## 1. 운영 서버 추천
 
-### 결론: 네이버클라우드(NCP) VM 1대 + Docker Compose
+> **결정 (2026-10-01)**: **AWS Lightsail(서울 리전)** 에 배포한다. 단계별 절차는 [`docs/DEPLOY_AWS.md`](DEPLOY_AWS.md)에 있다.
+> 아래 NCP 안은 처음 검토한 내용으로, 다른 국내 클라우드를 고를 때 참고한다. 배포 스크립트는 어느 쪽이든 같다.
+
+### 처음 검토안: 네이버클라우드(NCP) VM 1대 + Docker Compose
 
 | 항목 | 권장 구성 |
 |---|---|
@@ -65,7 +68,7 @@
 
 `docs/OPEN_REQUESTS.md`에 정리해 두었다. 배포에 꼭 필요한 것은 다음 세 가지다.
 
-- 서버(권장: NCP, 1장)와 도메인(예: `rent.taeil.org`), DNS를 바꿀 권한
+- 서버(AWS Lightsail 서울, `docs/DEPLOY_AWS.md`)와 도메인(예: `rent.taeil.org`), DNS를 바꿀 권한
 - SMTP 계정
 - 입금 계좌(계좌이체로 운영)
 
@@ -90,7 +93,7 @@ sudo bash setup-server.sh git@github.com:ictact-coop/taeil-space.git main
 - 비공개 저장소라 `curl`로 받을 수 없으면 스크립트 파일을 서버에 복사해서 실행한다.
 - 끝나면 다음 두 가지를 한다.
   1. DNS에서 `SITE_DOMAIN`의 A 레코드를 서버 공인 IP로 지정한다. Caddy는 이 레코드가 있어야 HTTPS 인증서를 받는다.
-  2. `/srv/taeil/deploy/.env`를 편집한다: `SITE_DOMAIN`, `ACME_EMAIL`, `APP_BASE_URL`, `EMAIL_FROM`, `SMTP_URL`.
+  2. `/srv/taeil/deploy/.env`를 편집한다: `SITE_DOMAIN`, `ACME_EMAIL`, `APP_BASE_URL`, `EMAIL_FROM`, `SMTP_HOST`·`SMTP_USER`·`SMTP_PASS`(또는 `SMTP_URL` 한 줄).
 - **`APP_ENCRYPTION_KEY`는 자동 생성된다.** 이 값을 비밀번호 관리자 등 **서버 밖에 꼭 따로 보관**한다. 잃어버리면 관리자 2단계 인증을 모두 다시 등록해야 하고, 백업에도 들어 있지 않다.
 
 ### 2.4 첫 배포
@@ -163,7 +166,7 @@ cd /srv/taeil/deploy
 - **매일 백업**: `setup-server.sh`가 cron(매일 03:30)을 등록한다. 기록은 `/var/log/taeil-backup.log`에 남는다.
   - DB는 `pg_dump` custom 형식, 업로드 파일은 tar.gz로 `/srv/taeil-backups`에 30일 동안 둔다(root만 읽기 가능).
   - `.env`에 `BACKUP_S3_URI`(예: `s3://taeil-backup/daily/`)와 키를 넣으면 Object Storage에도 올린다. **서버가 통째로 망가질 때를 대비해 꼭 설정한다.**
-- **서버 스냅샷**: NCP 콘솔에서 주 1회 만든다.
+- **서버 스냅샷**: 클라우드 콘솔에서 정기 스냅샷을 켠다(AWS Lightsail은 자동 스냅샷, `DEPLOY_AWS.md` 3.4).
 - **복구**: `./restore.sh <db-덤프> [uploads-tar]`를 실행한다.
   - 확인 문구(RESTORE)를 입력하면 지금 상태를 먼저 백업하고, web·worker를 멈춘 뒤 복원하고 다시 켠다.
   - 복원은 한 트랜잭션으로 해서, 중간에 실패하면 반영되지 않는다.
