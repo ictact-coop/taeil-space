@@ -205,16 +205,16 @@ describe.skipIf(!hasTestDb)("단계 1 설정 서비스", () => {
     it("필수 설정은 기본값이면 확인 필요, 확정하면 완료가 된다", async () => {
       const now = new Date("2026-10-07T00:00:00Z");
       let items = await computeReadiness(db, now);
-      expect(items.find((i) => i.id === "payment.pgHoldMinutes")?.state).toBe("confirm");
+      expect(items.find((i) => i.id === "payment.bankTransferHoldHours")?.state).toBe("confirm");
       expect(items.find((i) => i.id === "payment.refundTiers")?.state).toBe("todo");
       expect(items.find((i) => i.id === "fees")?.state).toBe("ok");
 
-      const r = await confirmSettings(db, { actor: system, keys: ["payment.pgHoldMinutes"], reason: "제안값 확정", now });
+      const r = await confirmSettings(db, { actor: system, keys: ["payment.bankTransferHoldHours"], reason: "제안값 확정", now });
       expect(r).toMatchObject({ ok: true });
-      expect(await getSetting(db, "payment.pgHoldMinutes", now)).toBe(30);
+      expect(await getSetting(db, "payment.bankTransferHoldHours", now)).toBe(24);
       items = await computeReadiness(db, now);
-      expect(items.find((i) => i.id === "payment.pgHoldMinutes")?.state).toBe("ok");
-      expect(await confirmSettings(db, { actor: system, keys: ["payment.pgHoldMinutes"], reason: "다시", now })).toMatchObject({ ok: false });
+      expect(items.find((i) => i.id === "payment.bankTransferHoldHours")?.state).toBe("ok");
+      expect(await confirmSettings(db, { actor: system, keys: ["payment.bankTransferHoldHours"], reason: "다시", now })).toMatchObject({ ok: false });
     });
 
     it("환불률표를 입력하면 완료, 규칙에 어긋나면 저장하지 않는다", async () => {

@@ -243,7 +243,7 @@ export const settingDefinitions = {
     ],
   }),
   "payment.pgHoldMinutes": integer({
-    requiredBeforeOpen: true,
+    // PG는 나중에 붙이므로 오픈 필수 항목에서 뺀다(PG 전환 때 확인)
     group: "payment",
     label: "결제 유효시간(PG)",
     description: "이 시간 안에 결제하지 않으면 신청을 취소하고 일정을 다시 엽니다.",
