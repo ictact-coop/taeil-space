@@ -4,13 +4,14 @@ import { formatKst } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
 import { adminPasswordResets, adminSessions, adminUsers } from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
-import { appBaseUrl, enqueueEmail, flushNotifications } from "@/server/notifications/queue";
+import { appBaseUrl, enqueueEmail } from "@/server/notifications/queue";
 import { hashPassword, validatePasswordPolicy } from "./password";
 
 /**
  * 관리자 아이디 찾기·비밀번호 재설정 (로그인 전).
  * - 계정이 있는지 화면에 드러나지 않도록, 요청 결과는 항상 같은 안내를 보여 주고 메일로만 알린다.
  * - 비밀번호 재설정은 아이디와 등록 이메일이 모두 맞아야 링크를 보낸다. 링크는 30분, 한 번만 쓸 수 있다.
+ * - 메일은 대기열에만 넣는다. 응답 시간으로 계정 유무가 드러나지 않도록 발송은 호출한 쪽이 응답 뒤에 한다(작업 프로세스도 1분마다 보낸다).
  * - 재설정해도 2단계 인증(OTP)은 그대로 필요하다. OTP 기기를 잃어버렸으면 계정 관리 담당자가 초기화한다.
  */
 export const RESET_TTL_MINUTES = 30;
@@ -25,11 +26,6 @@ export const isValidEmail = (email: string) => EMAIL_RE.test(email);
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 
 type Meta = { ip?: string | null };
-
-/** 응답 시간으로 계정 유무가 드러나지 않도록 메일은 기다리지 않고 보낸다(실패하면 작업 프로세스가 1분 안에 다시 보낸다). */
-function sendSoon(db: Db) {
-  void flushNotifications(db).catch(() => undefined);
-}
 export type RecoveryRequestResult = { ok: true } | { ok: false; error: string };
 
 const footer = "\n\n요청하지 않았다면 이 메일을 무시하세요. 계정에는 아무 변화가 없습니다.\n전태일기념관 대관관리";
@@ -57,7 +53,6 @@ export async function sendLoginIdReminder(db: Db, rawEmail: string, meta: Meta =
         users.map((u) => ({ actorType: "system" as const, action: "admin.find-id", targetType: "admin_user", targetId: u.id, ip: meta.ip ?? null, reason: `요청 시각 ${formatKst(now)}` })),
       );
     });
-    sendSoon(db);
   }
   return { ok: true };
 }
@@ -94,7 +89,6 @@ export async function requestPasswordReset(
     );
     await writeAudit(tx, { actorType: "system", action: "admin.password-reset-requested", targetType: "admin_user", targetId: user.id, ip: meta.ip ?? null });
   });
-  sendSoon(db);
   return { ok: true };
 }
 

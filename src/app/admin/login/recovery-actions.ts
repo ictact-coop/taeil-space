@@ -1,8 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { requestMeta } from "@/server/auth/current";
 import { RECOVERY_SENT_NOTICE, requestPasswordReset, resetPasswordWithToken, sendLoginIdReminder } from "@/server/auth/recovery";
 import { db } from "@/server/db/client";
+import { flushNotifications } from "@/server/notifications/queue";
 import { throttle, TOO_MANY_REQUESTS } from "@/server/security/throttle";
 
 export interface RecoveryState {
@@ -15,10 +17,16 @@ export interface RecoveryState {
   doneLoginId?: string;
 }
 
+/** 응답을 보낸 뒤 메일 대기열을 비운다(계정 유무와 관계없이 응답 시간이 같도록). */
+function sendAfterResponse() {
+  after(() => flushNotifications(db).catch(() => undefined));
+}
+
 export async function findIdAction(_prev: RecoveryState, form: FormData): Promise<RecoveryState> {
   const email = String(form.get("email") ?? "");
   if (!(await throttle("adminRecovery"))) return { error: TOO_MANY_REQUESTS, values: { email } };
   const r = await sendLoginIdReminder(db, email, await requestMeta());
+  sendAfterResponse();
   return r.ok ? { sent: RECOVERY_SENT_NOTICE } : { error: r.error, values: { email } };
 }
 
@@ -27,6 +35,7 @@ export async function requestResetAction(_prev: RecoveryState, form: FormData): 
   const email = String(form.get("email") ?? "");
   if (!(await throttle("adminRecovery"))) return { error: TOO_MANY_REQUESTS, values: { loginId, email } };
   const r = await requestPasswordReset(db, { loginId, email }, await requestMeta());
+  sendAfterResponse();
   return r.ok ? { sent: RECOVERY_SENT_NOTICE } : { error: r.error, values: { loginId, email } };
 }
 
