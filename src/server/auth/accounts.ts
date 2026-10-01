@@ -1,13 +1,14 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, fieldErrorsFrom, type MutationResult, pgErrorCode } from "@/server/actor";
-import { adminGrades, adminSessions, adminUsers } from "@/server/db/schema";
+import { adminGrades, adminPasswordResets, adminSessions, adminUsers } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { findGrade } from "./grades";
 import { hashPassword, validatePasswordPolicy, verifyPassword } from "./password";
 import { assertPermission, PermissionError } from "./permissions";
+import { isValidEmail } from "./recovery";
 
 /**
  * 관리자 계정 관리 ('계정 관리' 권한). 관리 화면과 `pnpm admin:manage`가 함께 쓴다.
@@ -23,6 +24,15 @@ const accountSchema = z.object({
     .regex(/^[a-z0-9][a-z0-9._-]{2,31}$/, "아이디는 영문 소문자·숫자·._- 로 3~32자입니다."),
   name: z.string().trim().min(1, "이름을 입력하세요.").max(50, "이름은 50자 이하로 입력하세요."),
   gradeId: z.string().uuid("등급을 고르세요."),
+  /** 선택 입력. 비우면 아이디 찾기·비밀번호 재설정 메일을 받을 수 없다. */
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(254, "이메일이 너무 깁니다.")
+    .optional()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || isValidEmail(v), "이메일 형식이 올바르지 않습니다."),
 });
 
 export type AccountAction = "reset-2fa" | "reset-password" | "deactivate" | "activate";
@@ -41,6 +51,7 @@ export async function listAdminAccounts(db: DbOrTx) {
       id: adminUsers.id,
       loginId: adminUsers.loginId,
       name: adminUsers.name,
+      email: adminUsers.email,
       gradeId: adminUsers.gradeId,
       gradeName: adminGrades.name,
       gradeIsSuper: adminGrades.isSuper,
@@ -92,7 +103,7 @@ async function findAccount(tx: DbOrTx, userId: string) {
 
 export async function createAdminAccount(
   db: Db,
-  params: { actor: Actor | null; raw: { loginId: string; name: string; gradeId: string }; password?: string },
+  params: { actor: Actor | null; raw: { loginId: string; name: string; gradeId: string; email?: string }; password?: string },
 ): Promise<AccountResult<{ id: string; loginId: string; temporaryPassword: string | null }>> {
   if (params.actor) assertPermission(params.actor, "accounts.manage");
   const parsed = accountSchema.safeParse(params.raw);
@@ -108,14 +119,14 @@ export async function createAdminAccount(
     const created = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(adminUsers)
-        .values({ loginId: input.loginId, name: input.name, gradeId: grade.id, passwordHash: await hashPassword(password) })
+        .values({ loginId: input.loginId, name: input.name, email: input.email, gradeId: grade.id, passwordHash: await hashPassword(password) })
         .returning({ id: adminUsers.id });
       await writeAudit(tx, {
         ...audit(params.actor),
         action: "admin.created",
         targetType: "admin_user",
         targetId: row!.id,
-        after: { loginId: input.loginId, name: input.name, grade: grade.name },
+        after: { loginId: input.loginId, name: input.name, email: input.email, grade: grade.name },
       });
       return row!;
     });
@@ -126,9 +137,9 @@ export async function createAdminAccount(
   }
 }
 
-export async function updateAdminAccount(db: Db, params: { actor: Actor; userId: string; raw: { name: string; gradeId: string } }): Promise<AccountResult> {
+export async function updateAdminAccount(db: Db, params: { actor: Actor; userId: string; raw: { name: string; gradeId: string; email?: string } }): Promise<AccountResult> {
   assertPermission(params.actor, "accounts.manage");
-  const parsed = accountSchema.pick({ name: true, gradeId: true }).safeParse(params.raw);
+  const parsed = accountSchema.pick({ name: true, gradeId: true, email: true }).safeParse(params.raw);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error.issues) };
   const input = parsed.data;
   return db.transaction(async (tx): Promise<AccountResult> => {
@@ -144,20 +155,29 @@ export async function updateAdminAccount(db: Db, params: { actor: Actor; userId:
       if (newGrade.isSuper) assertCanTouchSuper(params.actor);
       if (oldGrade.isSuper && user.isActive && (await otherActiveSuperAdmins(tx, user.id)) === 0) return { ok: false, fieldErrors: { gradeId: LAST_SUPER } };
     }
-    if (user.name === input.name && newGrade.id === oldGrade.id) return { ok: true };
-    await tx.update(adminUsers).set({ name: input.name, gradeId: newGrade.id, updatedAt: new Date() }).where(eq(adminUsers.id, user.id));
+    if (user.name === input.name && user.email === input.email && newGrade.id === oldGrade.id) return { ok: true };
+    await tx.update(adminUsers).set({ name: input.name, email: input.email, gradeId: newGrade.id, updatedAt: new Date() }).where(eq(adminUsers.id, user.id));
     // 등급이 바뀌면 기존 세션을 끊어 다시 로그인하게 한다.
     if (newGrade.id !== oldGrade.id) await tx.delete(adminSessions).where(eq(adminSessions.adminUserId, user.id));
+    // 이메일이 바뀌면 이전 주소로 보낸 재설정 링크는 쓸 수 없게 한다.
+    if (user.email !== input.email) await invalidateResetLinks(tx, user.id);
     await writeAudit(tx, {
       ...audit(params.actor),
       action: "admin.updated",
       targetType: "admin_user",
       targetId: user.id,
-      before: { name: user.name, grade: oldGrade.name },
-      after: { name: input.name, grade: newGrade.name },
+      before: { name: user.name, email: user.email, grade: oldGrade.name },
+      after: { name: input.name, email: input.email, grade: newGrade.name },
     });
     return { ok: true };
   });
+}
+
+async function invalidateResetLinks(tx: DbOrTx, userId: string) {
+  await tx
+    .update(adminPasswordResets)
+    .set({ usedAt: new Date() })
+    .where(and(eq(adminPasswordResets.adminUserId, userId), isNull(adminPasswordResets.usedAt)));
 }
 
 /** 2단계 인증 초기화, 임시 비밀번호 발급, 중지, 사용 재개. 해당 계정의 로그인 세션은 모두 끊는다. */
@@ -215,6 +235,35 @@ export async function changeOwnPassword(
     await tx.update(adminUsers).set({ passwordHash, updatedAt: new Date() }).where(eq(adminUsers.id, user.id));
     await tx.delete(adminSessions).where(and(eq(adminSessions.adminUserId, user.id), ne(adminSessions.id, params.currentSessionId)));
     await writeAudit(tx, { actorType: "admin", actorId: user.id, ip: params.ip ?? null, action: "admin.password-changed", targetType: "admin_user", targetId: user.id });
+  });
+  return { ok: true };
+}
+
+/** 내 이메일 변경(아이디 찾기·비밀번호 재설정 메일을 받을 주소). 현재 비밀번호를 확인한다. 비우면 등록을 지운다. */
+export async function changeOwnEmail(
+  db: Db,
+  params: { userId: string; current: string; email: string; ip?: string | null },
+): Promise<AccountResult> {
+  const parsed = accountSchema.shape.email.safeParse(params.email);
+  if (!parsed.success) return { ok: false, fieldErrors: { email: parsed.error.issues[0]?.message ?? "이메일 형식이 올바르지 않습니다." } };
+  const email = parsed.data;
+  const [user] = await db.select().from(adminUsers).where(eq(adminUsers.id, params.userId));
+  if (!user) return { ok: false, formError: "계정을 찾을 수 없습니다." };
+  if (!(await verifyPassword(user.passwordHash, params.current))) return { ok: false, fieldErrors: { current: "현재 비밀번호가 맞지 않습니다." } };
+  if (user.email === email) return { ok: true };
+  await db.transaction(async (tx) => {
+    await tx.update(adminUsers).set({ email, updatedAt: new Date() }).where(eq(adminUsers.id, user.id));
+    await invalidateResetLinks(tx, user.id);
+    await writeAudit(tx, {
+      actorType: "admin",
+      actorId: user.id,
+      ip: params.ip ?? null,
+      action: "admin.email-changed",
+      targetType: "admin_user",
+      targetId: user.id,
+      before: { email: user.email },
+      after: { email },
+    });
   });
   return { ok: true };
 }

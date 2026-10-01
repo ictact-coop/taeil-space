@@ -110,7 +110,7 @@ cd /srv/taeil/deploy
 ```bash
 C="docker compose -f /srv/taeil/deploy/docker-compose.prod.yml --env-file /srv/taeil/deploy/.env"
 $C run --rm --no-deps web pnpm db:seed                                      # 공간·기본 휴관일 (처음 한 번)
-$C run --rm --no-deps web pnpm admin:create --login admin --name "담당자 이름" --grade super
+$C run --rm --no-deps web pnpm admin:create --login admin --name "담당자 이름" --grade super --email <담당자 이메일>
 $C run --rm --no-deps web pnpm mail:test --to 담당자@taeil.org                # 메일 확인
 $C run --rm --no-deps web pnpm preflight --smtp                             # 점검
 ```

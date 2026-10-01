@@ -36,4 +36,6 @@ export const limits = {
   otpRequest: { limit: 20, windowSeconds: 3600 },
   otpVerify: { limit: 30, windowSeconds: 3600 },
   adminLogin: { limit: 30, windowSeconds: 900 },
+  /** 관리자 아이디 찾기·비밀번호 재설정 요청과 재설정 링크 사용 */
+  adminRecovery: { limit: 10, windowSeconds: 3600 },
 } as const;

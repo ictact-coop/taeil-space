@@ -9,7 +9,7 @@ import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { and, count, eq, isNotNull, sql } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { createDb } from "../src/server/db/connect";
 import { smtpConfigFromEnv } from "../src/server/notifications/mailer";
 import { adminGrades, adminUsers } from "../src/server/db/schema";
@@ -107,6 +107,11 @@ if (env("DATABASE_URL")) {
       else if ((supers?.n ?? 0) < 2) warn(`최고 관리자 ${supers?.n}명. 비상시를 위해 두 명 이상 권장합니다.`);
       else ok(`최고 관리자 ${supers?.n}명`);
       if ((supers?.n ?? 0) > 0 && (enrolled?.n ?? 0) === 0) warn("최고 관리자 중 2단계 인증을 등록한 사람이 없습니다. 첫 로그인을 마치세요.");
+      const noEmail = await db
+        .select({ loginId: adminUsers.loginId })
+        .from(adminUsers)
+        .where(and(eq(adminUsers.isActive, true), isNull(adminUsers.email)));
+      if (noEmail.length > 0) warn(`이메일이 없는 관리자 ${noEmail.length}명(${noEmail.map((u) => u.loginId).join(", ")}): 아이디·비밀번호를 스스로 찾을 수 없습니다. '내 계정'이나 계정 관리에서 등록하세요.`);
 
       section("오픈 준비 (관리자 > 정책 설정 > 개요·오픈 준비)");
       const items = await computeReadiness(db);

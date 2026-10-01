@@ -58,6 +58,8 @@ export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   loginId: text("login_id").notNull().unique(),
   name: text("name").notNull(),
+  /** 아이디 찾기·비밀번호 재설정 메일을 받을 주소(소문자로 저장). 한 사람이 여러 계정에 같은 주소를 쓸 수 있다. */
+  email: text("email"),
   passwordHash: text("password_hash").notNull(),
   gradeId: uuid("grade_id")
     .notNull()
@@ -74,6 +76,26 @@ export const adminUsers = pgTable("admin_users", {
   isActive: boolean("is_active").notNull().default(true),
   ...timestamps,
 });
+
+/**
+ * 관리자 비밀번호 재설정 링크. 원문 토큰은 메일에만 있고 여기에는 SHA-256 해시만 둔다.
+ * 30분 안에 한 번만 쓸 수 있다. 재설정해도 2단계 인증(OTP)은 그대로 필요하다.
+ */
+export const adminPasswordResets = pgTable(
+  "admin_password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    requestIp: text("request_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("admin_password_resets_user_idx").on(t.adminUserId, t.createdAt)],
+);
 
 export const adminSessions = pgTable(
   "admin_sessions",

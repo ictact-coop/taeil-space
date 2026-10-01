@@ -49,6 +49,7 @@ export default async function AccountsPage() {
                     <span className="flex flex-wrap gap-1">
                       {a.isActive ? <span className="badge bg-status-green/10 text-status-green">사용</span> : <span className="badge bg-cream-dark text-muted">중지</span>}
                       {!a.totpEnabledAt && <span className="badge bg-warning/10 text-warning">OTP 미등록</span>}
+                      {a.isActive && !a.email && <span className="badge bg-cream-dark text-muted">이메일 없음</span>}
                       {locked && <span className="badge bg-danger/10 text-danger">잠김</span>}
                     </span>
                   </td>

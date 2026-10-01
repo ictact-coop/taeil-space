@@ -23,7 +23,7 @@ cp .env.example .env            # APP_ENCRYPTION_KEY는 `openssl rand -base64 32
 docker compose up -d db         # PostgreSQL (taeil, taeil_test DB)
 pnpm db:migrate                 # 스키마 적용
 pnpm db:seed                    # 5개 공간, 기본 휴관 규칙(매주 월요일, 1월 1일)
-pnpm admin:create --login admin --name "시스템관리자" --grade super
+pnpm admin:create --login admin --name "시스템관리자" --grade super --email admin@example.org
 pnpm dev                        # 이용자 http://localhost:3000 · 관리자 http://localhost:3000/admin
 pnpm worker                     # 주기 작업(결제 유효시간 만료, 고아 첨부·세션 정리) — 별도 터미널
 ```

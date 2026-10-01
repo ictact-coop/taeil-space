@@ -71,6 +71,13 @@
       "when": 1790827051201,
       "tag": "0009_club_grade_schedule_only",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790897896848,
+      "tag": "0010_admin_account_recovery",
+      "breakpoints": true
     }
   ]
 }
