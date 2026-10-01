@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import { writeAudit } from "@/server/audit/log";
 import type { Actor, MutationResult } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { spacePhotos, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { detectContentType, extensionOf } from "@/server/storage/file-type";
@@ -19,7 +19,7 @@ export async function addSpacePhoto(
   db: Db,
   params: { actor: Actor; spaceId: string; fileName: string; data: Buffer; alt: string },
 ): Promise<MutationResult<{ id: string }>> {
-  assertCanManage(params.actor.role, "spaces");
+  assertPermission(params.actor, "spaces.manage");
   const ext = extensionOf(params.fileName);
   if (!PHOTO_EXTENSIONS.includes(ext)) return { ok: false, formError: "사진은 jpg, png, webp 파일만 올릴 수 있습니다." };
   if (params.data.length > PHOTO_MAX_BYTES) return { ok: false, formError: "사진은 5MB 이하만 올릴 수 있습니다." };
@@ -50,7 +50,7 @@ export async function addSpacePhoto(
 }
 
 export async function deleteSpacePhoto(db: Db, params: { actor: Actor; photoId: string }): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "spaces");
+  assertPermission(params.actor, "spaces.manage");
   const [row] = await db.delete(spacePhotos).where(eq(spacePhotos.id, params.photoId)).returning();
   if (!row) return { ok: false, formError: "사진을 찾을 수 없습니다." };
   await getStorage().remove(row.storageKey);

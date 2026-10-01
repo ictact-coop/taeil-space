@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { spaceInputSchema } from "@/domain/spaces/space-input";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, fieldErrorsFrom, type MutationResult, pgErrorCode, requireReason } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
@@ -26,7 +26,7 @@ export async function saveSpace(
   db: Db,
   params: { actor: Actor; id: string | null; raw: Record<string, unknown>; reason: string },
 ): Promise<MutationResult<Space>> {
-  assertCanManage(params.actor.role, "spaces");
+  assertPermission(params.actor, "spaces.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   const parsed = spaceInputSchema.safeParse(params.raw);

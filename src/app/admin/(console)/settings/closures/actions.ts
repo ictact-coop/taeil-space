@@ -17,7 +17,7 @@ export async function createClosureAction(prev: ClosureFormState, form: FormData
   return guard(prev, async () => {
     const s = (k: string) => String(form.get(k) ?? "");
     const r = await createClosureRule(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       raw: {
         type: s("type"),
         name: s("name"),
@@ -52,7 +52,7 @@ export async function createClosureAction(prev: ClosureFormState, form: FormData
 export async function deactivateClosureAction(id: string, form: FormData): Promise<void> {
   const admin = await requireAdmin();
   const r = await deactivateClosureRule(db, {
-    actor: { id: admin.id, role: admin.role, ip: admin.ip },
+    actor: admin,
     id,
     reason: String(form.get("reason") ?? ""),
   });

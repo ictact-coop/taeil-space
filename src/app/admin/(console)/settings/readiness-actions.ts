@@ -9,7 +9,7 @@ import { confirmSettings } from "@/server/settings/service";
 export async function confirmSettingAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const result = await confirmSettings(db, {
-    actor: { id: admin.id, role: admin.role, ip: admin.ip },
+    actor: admin,
     keys: formData.getAll("key").map(String),
     reason: String(formData.get("reason") ?? ""),
   });

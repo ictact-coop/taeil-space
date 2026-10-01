@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader, ResultNotice } from "@/components/admin/ui";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { listDiscountRules } from "@/server/pricing/discount-service";
 
@@ -37,7 +37,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Pr
           ))}
         </ul>
       )}
-      {canManage(admin.role, "discounts") && (
+      {hasPermission(admin, "pricing.manage") && (
         <Link href="/admin/settings/discounts/new" className="btn-secondary self-start">
           감면 규칙 추가
         </Link>

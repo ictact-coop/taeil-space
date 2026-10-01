@@ -33,7 +33,7 @@ try {
     const now = new Date();
     for (const u of await listAdminAccounts(db)) {
       const flags = [u.isActive ? "사용" : "중지", u.totpEnabledAt ? "OTP 등록" : "OTP 미등록", u.lockedUntil && u.lockedUntil > now ? "잠김" : ""].filter(Boolean);
-      console.log(`${u.loginId}\t${u.name}\t${u.role}\t${flags.join(", ")}`);
+      console.log(`${u.loginId}\t${u.name}\t${u.gradeName}\t${flags.join(", ")}`);
     }
   } else {
     const [user] = await db.select({ id: adminUsers.id }).from(adminUsers).where(eq(adminUsers.loginId, values.login!));

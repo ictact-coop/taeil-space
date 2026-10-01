@@ -14,7 +14,7 @@ export async function saveDiscountAction(id: string | null, prev: FormState, for
   const admin = await requireAdmin();
   const result = await guard(prev, async () => {
     const r = await saveDiscountRule(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       id,
       raw: discountInputFromForm(form),
       reason: String(form.get("reason") ?? ""),

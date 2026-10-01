@@ -1,10 +1,4 @@
-import type { AdminRoleName } from "@/domain/settings/define";
 
-export const roleLabels: Record<AdminRoleName, string> = {
-  rental: "대관 담당자",
-  accounting: "회계 담당자",
-  system: "시스템 관리자",
-};
 
 export const auditActionLabels: Record<string, string> = {
   "setting.change": "설정 변경",
@@ -19,6 +13,9 @@ export const auditActionLabels: Record<string, string> = {
   "auth.totp_enrolled": "2단계 인증 등록",
   "admin.created": "관리자 계정 생성",
   "admin.updated": "관리자 계정 정보 변경",
+  "grade.created": "관리자 등급 생성",
+  "grade.updated": "관리자 등급 변경",
+  "grade.deleted": "관리자 등급 삭제",
   "admin.password-changed": "관리자 비밀번호 변경(본인)",
   "admin.reset-2fa": "관리자 2단계 인증 초기화",
   "admin.reset-password": "관리자 비밀번호 재발급",

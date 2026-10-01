@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { hasPermission } from "@/domain/auth/permissions";
 import { withNotice } from "@/lib/url";
 import type { MutationResult } from "@/server/actor";
 import { addNote, approveApplication, confirmDeposit, rejectApplication, requestRevision, startReview } from "@/server/applications/review";
@@ -12,7 +13,7 @@ import { getGateway } from "@/server/payments/gateway";
 import { completeManualRefund, retryRefund } from "@/server/payments/refunds";
 
 async function run(no: string, done: string, fn: (admin: CurrentAdmin) => Promise<MutationResult>): Promise<never> {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("applications.view");
   let result: MutationResult;
   try {
     result = await fn(admin);
@@ -25,7 +26,7 @@ async function run(no: string, done: string, fn: (admin: CurrentAdmin) => Promis
   redirect(result.ok ? withNotice(path, { done }) : withNotice(path, { error: result.formError ?? Object.values(result.fieldErrors ?? {})[0] ?? "처리하지 못했습니다." }));
 }
 
-const actor = (a: CurrentAdmin) => ({ id: a.id, role: a.role, ip: a.ip });
+const actor = (a: CurrentAdmin) => a;
 const s = (f: FormData, k: string) => String(f.get(k) ?? "");
 
 export async function startReviewAction(no: string, id: string): Promise<void> {
@@ -48,13 +49,13 @@ export async function addNoteAction(no: string, id: string, f: FormData): Promis
 }
 export async function manualRefundAction(no: string, refundId: string, f: FormData): Promise<void> {
   await run(no, "환불 완료로 기록했습니다.", async (a) => {
-    if (!["system", "rental", "accounting"].includes(a.role)) throw new PermissionError();
+    if (!hasPermission(a, "refunds.manage")) throw new PermissionError();
     return completeManualRefund(db, { actor: actor(a), refundId, note: s(f, "note") });
   });
 }
 export async function retryRefundAction(no: string, refundId: string): Promise<void> {
   await run(no, "환불을 다시 처리했습니다.", async (a) => {
-    if (!["system", "rental", "accounting"].includes(a.role)) throw new PermissionError();
+    if (!hasPermission(a, "refunds.manage")) throw new PermissionError();
     return retryRefund(db, getGateway(), { actor: actor(a), refundId });
   });
 }

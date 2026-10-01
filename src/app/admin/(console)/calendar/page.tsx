@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/ui";
 import { addDays, weekdayOf } from "@/domain/calendar/closures";
 import { formatKst, kstDateOf } from "@/lib/time";
+import { hasPermission } from "@/domain/auth/permissions";
 import { getMonthSchedule } from "@/server/applications/dashboard";
 import { statusLabels } from "@/server/applications/transition";
 import { requireAdmin } from "@/server/auth/current";
@@ -19,7 +20,8 @@ const tone: Record<string, string> = {
 };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; space?: string }> }) {
-  await requireAdmin();
+  const admin = await requireAdmin("calendar.view");
+  const canApps = hasPermission(admin, "applications.view");
   const sp = await searchParams;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.month ?? "") ? sp.month! : kstDateOf(new Date()).slice(0, 7);
   const spaces = await listSpaces(db);
@@ -91,14 +93,24 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 ))}
                 {dayApps.map((a) => (
                   <li key={a.applicationNo}>
-                    <Link
-                      href={`/admin/applications/${a.applicationNo}`}
-                      title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
-                      className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
-                    >
-                      {formatKst(a.startsAt).slice(-5)} {space ? "" : `${a.spaceName} `}
-                      {a.orgName}
-                    </Link>
+                    {canApps ? (
+                      <Link
+                        href={`/admin/applications/${a.applicationNo}`}
+                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
+                        className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
+                      >
+                        {formatKst(a.startsAt).slice(-5)} {space ? "" : `${a.spaceName} `}
+                        {a.orgName}
+                      </Link>
+                    ) : (
+                      <span
+                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
+                        className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
+                      >
+                        {formatKst(a.startsAt).slice(-5)} {space ? "" : `${a.spaceName} `}
+                        {a.orgName}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

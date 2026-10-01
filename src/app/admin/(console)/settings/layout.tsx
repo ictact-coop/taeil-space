@@ -1,6 +1,8 @@
+import { requireAdmin } from "@/server/auth/current";
 import { SettingsNav } from "./settings-nav";
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  await requireAdmin("settings.view");
   return (
     <div className="mx-auto flex max-w-6xl flex-col lg:flex-row lg:gap-8">
       <SettingsNav />

@@ -2,7 +2,7 @@ import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { blockInputSchema } from "@/domain/calendar/block-input";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, fieldErrorsFrom, type MutationResult, pgErrorCode } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { applications, scheduleBlocks, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
@@ -56,7 +56,7 @@ export async function createBlock(
   db: Db,
   params: { actor: Actor; raw: Record<string, unknown> },
 ): Promise<CreateBlockResult> {
-  assertCanManage(params.actor.role, "blocks");
+  assertPermission(params.actor, "schedule.manage");
   const parsed = blockInputSchema.safeParse(params.raw);
   if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error.issues) };
   const input = parsed.data;
@@ -104,7 +104,7 @@ export async function createBlock(
 }
 
 export async function deleteBlock(db: Db, params: { actor: Actor; id: string; reason: string }): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "blocks");
+  assertPermission(params.actor, "schedule.manage");
   if (params.reason.trim().length < 2) return { ok: false, formError: "삭제 사유를 입력하세요." };
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(scheduleBlocks).where(eq(scheduleBlocks.id, params.id)).for("update");

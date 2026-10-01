@@ -32,7 +32,7 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     process.env.STORAGE_DIR = storageDir;
     setStorageForTest(null);
     ({ db, close } = await resetTestDb());
-    system = { id: (await createTestAdmin(db, "system")).id, role: "system" };
+    system = (await createTestAdmin(db, "system")).actor;
     hall = await createTestSpace(db, { name: "공연장", capacity: 60, minHeadcount: 20, slotMinutes: 60, minDurationMinutes: 120, extraConsents: ["hallRules"] });
     seminar = await createTestSpace(db, { name: "세미나실", capacity: 15, slotMinutes: 60, minDurationMinutes: 60, bufferAfterMinutes: 30 });
     await db.insert(closureRules).values({ type: "weekly", weekday: 1, name: "월요일", publicMessage: "매주 월요일은 휴관일입니다." });

@@ -1,26 +1,4 @@
-import type { AdminRoleName } from "@/domain/settings/define";
-
-/** 전용 설정 화면별 수정 권한 (계획서 2.7: 대관 담당자는 휴관·일정 차단·접수기간만 수정) */
-export const areaEditors = {
-  spaces: ["system"],
-  closures: ["system", "rental"],
-  blocks: ["system", "rental"],
-  bookingWindows: ["system", "rental"],
-  fees: ["system"],
-  discounts: ["system"],
-  /** 신청 심사(보완요청·반려·승인·입금확인) */
-  review: ["system", "rental"],
-  /** 관리자 계정 생성·권한 변경·초기화·중지 */
-  accounts: ["system"],
-  /** 환불 수동 완료·재처리 */
-  refunds: ["system", "rental", "accounting"],
-} as const satisfies Record<string, readonly AdminRoleName[]>;
-
-export type ManagedArea = keyof typeof areaEditors;
-
-export function canManage(role: AdminRoleName, area: ManagedArea): boolean {
-  return (areaEditors[area] as readonly AdminRoleName[]).includes(role);
-}
+import { hasPermission, type Permission, type PermissionHolder } from "@/domain/auth/permissions";
 
 export class PermissionError extends Error {
   constructor() {
@@ -28,6 +6,7 @@ export class PermissionError extends Error {
   }
 }
 
-export function assertCanManage(role: AdminRoleName, area: ManagedArea): void {
-  if (!canManage(role, area)) throw new PermissionError();
+/** 서비스 함수의 권한 검사. 등급에 권한이 없으면 PermissionError (서버 액션의 guard가 폼 오류로 바꾼다). */
+export function assertPermission(actor: PermissionHolder, permission: Permission): void {
+  if (!hasPermission(actor, permission)) throw new PermissionError();
 }

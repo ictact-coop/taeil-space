@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { describeRefundTiers, refundTiersSchema, type RefundTier } from "@/domain/refund/tiers";
+import type { Permission } from "@/domain/auth/permissions";
+
+export type SettingEditPermission = Extract<Permission, "settings.manage" | "schedule.manage">;
 
 /**
  * 설정 정의 빌더 (계획서 2.7).
@@ -18,7 +21,6 @@ export const settingGroups = {
 } as const;
 
 export type SettingGroup = keyof typeof settingGroups;
-export type AdminRoleName = "rental" | "accounting" | "system";
 
 export type SettingInput =
   | { kind: "integer"; min: number; max: number; unit?: string }
@@ -41,8 +43,8 @@ export interface SettingDefinition<T> {
   input: SettingInput;
   defaultValue: T;
   schema: z.ZodType<T>;
-  /** 이 설정을 수정할 수 있는 역할. 시스템 관리자는 항상 포함된다. */
-  editableBy: readonly AdminRoleName[];
+  /** 이 설정을 수정하는 데 필요한 권한. 최고 관리자는 항상 수정할 수 있다. */
+  editPermission: SettingEditPermission;
   /** 오픈 전에 기념관이 값을 확정해야 하는 항목 (계획서 6장 ★) */
   requiredBeforeOpen: boolean;
   /** 폼 문자열 → 값. 실패 시 사용자에게 보여줄 오류 메시지. */
@@ -58,7 +60,7 @@ interface Common {
   label: string;
   description?: string;
   refs?: readonly string[];
-  editableBy?: readonly AdminRoleName[];
+  editPermission?: SettingEditPermission;
   requiredBeforeOpen?: boolean;
 }
 
@@ -77,7 +79,7 @@ function build<T>(
   }
   return {
     ...common,
-    editableBy: common.editableBy ?? ["system"],
+    editPermission: common.editPermission ?? "settings.manage",
     requiredBeforeOpen: common.requiredBeforeOpen ?? false,
     input,
     defaultValue,

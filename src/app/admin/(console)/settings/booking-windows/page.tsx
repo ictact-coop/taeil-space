@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Notice, PageHeader, ReadOnlyNotice, ResultNotice } from "@/components/admin/ui";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { getBookingWindowView, listWindowSpaces } from "@/server/calendar/booking-window-service";
 import { db } from "@/server/db/client";
 import { extendWindowAction, setWindowAction } from "./actions";
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "교육실 접수기간" };
 export default async function BookingWindowsPage({ searchParams }: { searchParams: Promise<{ done?: string; error?: string }> }) {
   const admin = await requireAdmin();
   const { done, error } = await searchParams;
-  const editable = canManage(admin.role, "bookingWindows");
+  const editable = hasPermission(admin, "schedule.manage");
   const spaces = await listWindowSpaces(db);
   const views = await Promise.all(spaces.map(async (s) => ({ space: s, view: await getBookingWindowView(db, s.id) })));
 

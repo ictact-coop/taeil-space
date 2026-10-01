@@ -92,7 +92,7 @@ curl https://rent.taeil.org/api/health   # {"ok":true}
 ### 2.4 첫 관리자와 기본 데이터
 
 ```bash
-$C run --rm web pnpm admin:create --login admin --name "담당자 이름" --role system
+$C run --rm web pnpm admin:create --login admin --name "담당자 이름" --grade super
 # 출력된 임시 비밀번호로 /admin 로그인 → 2단계 인증(OTP 앱) 등록
 $C run --rm web pnpm db:seed   # 공간·기본 휴관일 (처음 한 번)
 ```

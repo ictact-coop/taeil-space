@@ -8,7 +8,7 @@ import { SpaceForm } from "../space-form";
 export const metadata: Metadata = { title: "공간 추가" };
 
 export default async function NewSpacePage() {
-  await requireAdmin(["system"]);
+  await requireAdmin("spaces.manage");
   return (
     <div>
       <PageHeader

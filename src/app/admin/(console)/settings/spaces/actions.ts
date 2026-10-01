@@ -14,7 +14,7 @@ export async function saveSpaceAction(id: string | null, prev: FormState, form: 
   const admin = await requireAdmin();
   const result = await guard(prev, async () => {
     const r = await saveSpace(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       id,
       raw: spaceInputFromForm(form),
       reason: String(form.get("reason") ?? ""),

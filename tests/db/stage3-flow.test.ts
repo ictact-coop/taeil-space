@@ -42,9 +42,9 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     process.env.STORAGE_DIR = storageDir;
     setStorageForTest(null);
     ({ db, close } = await resetTestDb());
-    system = { id: (await createTestAdmin(db, "system")).id, role: "system" };
-    rental = { id: (await createTestAdmin(db, "rental")).id, role: "rental" };
-    accounting = { id: (await createTestAdmin(db, "accounting")).id, role: "accounting" };
+    system = (await createTestAdmin(db, "system")).actor;
+    rental = (await createTestAdmin(db, "rental")).actor;
+    accounting = (await createTestAdmin(db, "accounting")).actor;
     room = await createTestSpace(db, { name: "세미나실", capacity: 15, slotMinutes: 60, minDurationMinutes: 60 });
     const fee = { baseMinutes: 180, baseFee: 60000, extraUnitMinutes: 60, extraFee: 20000, nightFeePerHour: 10000 };
     await saveFeeSchedule(db, { actor: system, items: { spaces: { [room.id]: fee }, options: [] }, effectiveFrom: new Date("2026-10-01T00:00:00Z"), reason: "요금", now: new Date("2026-10-01T00:00:00Z") });

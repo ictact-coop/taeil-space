@@ -33,15 +33,35 @@ const timestamps = {
 
 // ─── 관리자·인증 ─────────────────────────────────────────────
 
-/** 대관 담당자 / 회계 담당자 / 시스템 관리자 ([요구] 5장) */
-export const adminRole = pgEnum("admin_role", ["rental", "accounting", "system"]);
+/**
+ * 관리자 등급. 등급마다 권한 목록(src/domain/auth/permissions.ts의 키)을 갖는다.
+ * is_super 등급(시스템 최고 관리자)은 권한 목록과 관계없이 모든 권한을 가지며 하나만 있다.
+ * code는 기본 등급(super·staff·club) 식별용이고, 관리자가 만든 등급은 null이다.
+ */
+export const adminGrades = pgTable(
+  "admin_grades",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").unique(),
+    name: text("name").notNull().unique(),
+    description: text("description").notNull().default(""),
+    permissions: text("permissions").array().notNull().default(sql`'{}'::text[]`),
+    isSuper: boolean("is_super").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(100),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("admin_grades_single_super_uq").on(t.isSuper).where(sql`${t.isSuper}`)],
+);
+
 
 export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   loginId: text("login_id").notNull().unique(),
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
-  role: adminRole("role").notNull(),
+  gradeId: uuid("grade_id")
+    .notNull()
+    .references(() => adminGrades.id, { onDelete: "restrict" }),
   /** AES-256-GCM으로 암호화한 TOTP 비밀키 */
   totpSecretEnc: text("totp_secret_enc"),
   /** 등록 확인 전의 TOTP 비밀키 */

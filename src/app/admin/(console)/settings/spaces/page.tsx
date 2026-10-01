@@ -4,7 +4,7 @@ import { PageHeader, ResultNotice } from "@/components/admin/ui";
 import { extraConsentCatalog, isExtraConsentKey } from "@/domain/spaces/consents";
 import { formatMinutes } from "@/domain/pricing/fee-schedule";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { listSpaces } from "@/server/spaces/service";
 
@@ -58,7 +58,7 @@ export default async function SpacesPage({ searchParams }: { searchParams: Promi
           </tbody>
         </table>
       </div>
-      {canManage(admin.role, "spaces") && (
+      {hasPermission(admin, "spaces.manage") && (
         <Link href="/admin/settings/spaces/new" className="btn-secondary mt-4">
           공간 추가
         </Link>

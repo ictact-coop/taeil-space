@@ -4,7 +4,7 @@ import { effectiveBookingWindow } from "@/domain/calendar/booking-window";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, type MutationResult, requireReason } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { bookingWindows, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { getSettings } from "@/server/settings/service";
@@ -80,7 +80,7 @@ export async function setBookingWindow(
   db: Db,
   params: { actor: Actor; spaceId: string; opensFrom: string; opensUntil: string; reason: string },
 ): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "bookingWindows");
+  assertPermission(params.actor, "schedule.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   const fieldErrors: Record<string, string> = {};
@@ -96,7 +96,7 @@ export async function extendBookingWindow(
   db: Db,
   params: { actor: Actor; spaceId: string; reason: string; now?: Date },
 ): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "bookingWindows");
+  assertPermission(params.actor, "schedule.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   const now = params.now ?? new Date();

@@ -22,8 +22,8 @@ describe.skipIf(!hasTestDb)("단계 1 설정 서비스", () => {
 
   beforeAll(async () => {
     ({ db, close } = await resetTestDb());
-    system = { id: (await createTestAdmin(db, "system")).id, role: "system" };
-    rental = { id: (await createTestAdmin(db, "rental")).id, role: "rental" };
+    system = (await createTestAdmin(db, "system")).actor;
+    rental = (await createTestAdmin(db, "rental")).actor;
   });
   afterAll(async () => close?.());
 

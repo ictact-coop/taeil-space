@@ -33,7 +33,7 @@ export async function saveFeeScheduleAction(prev: FeeFormState, form: FormData):
       effectiveFrom = parsed;
     }
     const r = await saveFeeSchedule(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       items,
       effectiveFrom,
       reason: String(form.get("reason") ?? ""),
@@ -50,7 +50,7 @@ export async function cancelFeeScheduleAction(id: number, form: FormData): Promi
   const admin = await requireAdmin();
   let r;
   try {
-    r = await cancelScheduledFeeSchedule(db, { actor: { id: admin.id, role: admin.role, ip: admin.ip }, id, reason: String(form.get("reason") ?? "") });
+    r = await cancelScheduledFeeSchedule(db, { actor: admin, id, reason: String(form.get("reason") ?? "") });
   } catch (e) {
     if (!(e instanceof PermissionError)) throw e;
     r = { ok: false as const, formError: e.message };

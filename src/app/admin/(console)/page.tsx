@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { hasPermission } from "@/domain/auth/permissions";
 import { formatKst } from "@/lib/time";
 import { getDashboard } from "@/server/applications/dashboard";
 import { requireAdmin } from "@/server/auth/current";
@@ -19,9 +20,13 @@ function Stat({ label, value, href, tone = "default" }: { label: string; value: 
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { denied } = await searchParams;
   const d = await getDashboard(db);
+  const canApps = hasPermission(admin, "applications.view");
+  const canRefunds = hasPermission(admin, "refunds.manage");
+  const canAudit = hasPermission(admin, "audit.view");
+  const canCalendar = hasPermission(admin, "calendar.view");
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="대시보드" />
@@ -30,17 +35,33 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Notice kind="warning">이 메뉴를 볼 권한이 없습니다.</Notice>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="신규 신청(결제 완료)" value={d.newApplications} href="/admin/applications?tab=todo" />
-        <Stat label="검토중" value={d.reviewing} href="/admin/applications?tab=todo" />
-        <Stat label="보완요청 중" value={d.revision} href="/admin/applications?tab=revision" />
-        <Stat label="결제대기" value={d.pendingPayment} href="/admin/applications?tab=pending" />
-        <Stat label={`심사 지연(${d.delayDays}일 이상)`} value={d.delayed} href="/admin/applications?tab=todo" tone="alert" />
-        <Stat label="환불 처리 필요" value={d.refundTodo} href="/admin/refunds" tone="alert" />
-        <Stat label="환불 실패" value={d.refundFailed} href="/admin/refunds" tone="alert" />
-        <Stat label="알림 발송 실패" value={d.mailFailed} href="/admin/audit" tone="alert" />
-      </div>
-      <Card className="mt-6">
+      {(canApps || canRefunds || canAudit) && (
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {canApps && (
+            <>
+              <Stat label="신규 신청(결제 완료)" value={d.newApplications} href="/admin/applications?tab=todo" />
+              <Stat label="검토중" value={d.reviewing} href="/admin/applications?tab=todo" />
+              <Stat label="보완요청 중" value={d.revision} href="/admin/applications?tab=revision" />
+              <Stat label="결제대기" value={d.pendingPayment} href="/admin/applications?tab=pending" />
+              <Stat label={`심사 지연(${d.delayDays}일 이상)`} value={d.delayed} href="/admin/applications?tab=todo" tone="alert" />
+            </>
+          )}
+          {canRefunds && (
+            <>
+              <Stat label="환불 처리 필요" value={d.refundTodo} href="/admin/refunds" tone="alert" />
+              <Stat label="환불 실패" value={d.refundFailed} href="/admin/refunds" tone="alert" />
+            </>
+          )}
+          {canAudit && <Stat label="알림 발송 실패" value={d.mailFailed} href="/admin/audit" tone="alert" />}
+        </div>
+      )}
+      {!canApps && !canRefunds && !canAudit && !canCalendar && (
+        <Notice kind="info">
+          {admin.gradeName} 등급에는 아직 볼 수 있는 메뉴가 없습니다. 필요한 권한은 시스템 최고 관리자에게 요청하세요.
+        </Notice>
+      )}
+      {canCalendar && (
+      <Card>
         <h2 className="mb-3 font-semibold text-navy">오늘 일정</h2>
         {d.todays.length === 0 && d.blocksToday.length === 0 ? (
           <p className="text-sm text-muted">오늘은 대관 일정이 없습니다.</p>
@@ -52,9 +73,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   {formatKst(t.startsAt).slice(-5)}–{formatKst(t.endsAt).slice(-5)}
                 </span>
                 <span className="font-medium">{t.spaceName}</span>
-                <Link href={`/admin/applications/${t.applicationNo}`} className="text-navy underline">
-                  {t.orgName} · {t.eventTitle}
-                </Link>
+                {canApps ? (
+                  <Link href={`/admin/applications/${t.applicationNo}`} className="text-navy underline">
+                    {t.orgName} · {t.eventTitle}
+                  </Link>
+                ) : (
+                  <span>
+                    {t.orgName} · {t.eventTitle}
+                  </span>
+                )}
                 <StatusBadge status={t.status} />
               </li>
             ))}
@@ -66,6 +93,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </ul>
         )}
       </Card>
+      )}
     </div>
   );
 }

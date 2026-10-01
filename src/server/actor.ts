@@ -1,9 +1,8 @@
-import type { AdminRoleName } from "@/domain/settings/define";
+import type { PermissionHolder } from "@/domain/auth/permissions";
 
-/** 관리 작업을 하는 관리자 (감사 로그용) */
-export interface Actor {
+/** 관리 작업을 하는 관리자 (권한 검사·감사 로그용) */
+export interface Actor extends PermissionHolder {
   id: string;
-  role: AdminRoleName;
   ip?: string | null;
 }
 

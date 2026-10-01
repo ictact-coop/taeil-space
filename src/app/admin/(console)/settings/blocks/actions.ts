@@ -17,7 +17,7 @@ export async function createBlockAction(prev: BlockFormState, form: FormData): P
   return guard(prev, async () => {
     const s = (k: string) => String(form.get(k) ?? "");
     const r = await createBlock(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       raw: { kind: s("kind"), spaceId: s("spaceId"), startsAt: s("startsAt"), endsAt: s("endsAt"), reason: s("reason") },
     });
     if (!r.ok) {
@@ -30,7 +30,7 @@ export async function createBlockAction(prev: BlockFormState, form: FormData): P
 
 export async function deleteBlockAction(id: string, form: FormData): Promise<void> {
   const admin = await requireAdmin();
-  const r = await deleteBlock(db, { actor: { id: admin.id, role: admin.role, ip: admin.ip }, id, reason: String(form.get("reason") ?? "") });
+  const r = await deleteBlock(db, { actor: admin, id, reason: String(form.get("reason") ?? "") });
   revalidatePath("/admin/settings", "layout");
   const params = new URLSearchParams(r.ok ? { done: "차단을 해제했습니다." } : { error: r.formError ?? "처리하지 못했습니다." });
   redirect(`/admin/settings/blocks?${params.toString()}`);

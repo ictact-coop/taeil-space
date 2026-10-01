@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader } from "@/components/admin/ui";
-import { roleLabels } from "@/lib/labels";
 import { formatKst } from "@/lib/time";
 import { listAdminAccounts } from "@/server/auth/accounts";
+import { listGrades } from "@/server/auth/grades";
 import { requireAdmin } from "@/server/auth/current";
 import { db } from "@/server/db/client";
 import { AccountCommandForm, EditAccountForm } from "../account-forms";
@@ -12,12 +12,18 @@ import { accountCommandAction, updateAccountAction } from "../actions";
 export const metadata: Metadata = { title: "계정 상세" };
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin(["system"]);
+  const admin = await requireAdmin("accounts.manage");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
-  const account = (await listAdminAccounts(db)).find((a) => a.id === id);
+  const [accounts, grades] = await Promise.all([listAdminAccounts(db), listGrades(db)]);
+  const account = accounts.find((a) => a.id === id);
   if (!account) notFound();
   const self = account.id === admin.id;
+  // 최고 관리자 계정은 최고 관리자만 조치한다
+  const protectedSuper = account.gradeIsSuper && !admin.isSuper;
+  const assignable = grades.filter((g) => admin.isSuper || !g.isSuper).map((g) => ({ id: g.id, name: g.name, description: g.description }));
+  const current = { id: account.gradeId, name: account.gradeName, description: grades.find((g) => g.id === account.gradeId)?.description ?? "" };
+  const gradeLocked = self ? "자기 계정의 등급은 다른 관리자가 바꿉니다." : protectedSuper ? "최고 관리자 계정의 등급은 최고 관리자만 바꿉니다." : null;
   const locked = account.lockedUntil && account.lockedUntil > new Date();
   const command = (action: Parameters<typeof accountCommandAction>[1]) => accountCommandAction.bind(null, account.id, action);
 
@@ -25,17 +31,19 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`${account.name} (${account.loginId})`}
-        description={`${roleLabels[account.role]} · ${account.isActive ? "사용 중" : "중지됨"} · 2단계 인증 ${account.totpEnabledAt ? `등록(${formatKst(account.totpEnabledAt)})` : "미등록"}${locked ? ` · ${formatKst(account.lockedUntil!)}까지 잠김` : ""}`}
+        description={`${account.gradeName} · ${account.isActive ? "사용 중" : "중지됨"} · 2단계 인증 ${account.totpEnabledAt ? `등록(${formatKst(account.totpEnabledAt)})` : "미등록"}${locked ? ` · ${formatKst(account.lockedUntil!)}까지 잠김` : ""}`}
         crumbs={[{ href: "/admin/accounts", label: "계정 관리" }]}
       />
       <Card>
         <h2 className="mb-3 font-semibold text-navy">기본 정보</h2>
-        <EditAccountForm action={updateAccountAction.bind(null, account.id)} name={account.name} role={account.role} self={self} />
+        <EditAccountForm action={updateAccountAction.bind(null, account.id)} name={account.name} grade={current} grades={assignable} gradeLocked={gradeLocked} />
       </Card>
       <Card>
         <h2 className="mb-3 font-semibold text-navy">계정 조치</h2>
         {self ? (
           <Notice kind="info">자기 계정은 여기서 초기화·중지할 수 없습니다. 비밀번호는 &lsquo;내 계정&rsquo;에서 바꾸세요.</Notice>
+        ) : protectedSuper ? (
+          <Notice kind="info">시스템 최고 관리자 계정은 최고 관리자만 초기화·중지할 수 있습니다.</Notice>
         ) : (
           <div className="divide-y divide-line">
             <AccountCommandForm

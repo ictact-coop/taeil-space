@@ -7,7 +7,7 @@ import { DiscountForm } from "../discount-form";
 export const metadata: Metadata = { title: "감면 규칙 추가" };
 
 export default async function NewDiscountPage() {
-  await requireAdmin(["system"]);
+  await requireAdmin("pricing.manage");
   return (
     <div>
       <PageHeader title="감면 규칙 추가" crumbs={[{ href: "/admin/settings", label: "정책 설정" }, { href: "/admin/settings/discounts", label: "감면" }]} />

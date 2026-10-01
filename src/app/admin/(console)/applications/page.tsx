@@ -11,7 +11,7 @@ import { db } from "@/server/db/client";
 export const metadata: Metadata = { title: "신청 관리" };
 
 export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string }> }) {
-  await requireAdmin();
+  await requireAdmin("applications.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const { rows, tab, tabCounts, pageSize } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "todo", q: sp.q ?? "", page });

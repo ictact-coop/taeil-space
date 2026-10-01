@@ -13,7 +13,7 @@ function back(key: string, params: Record<string, string>): never {
 export async function revertAction(key: string, formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const result = await revertSetting(db, {
-    actor: { id: admin.id, role: admin.role, ip: admin.ip },
+    actor: admin,
     policyValueId: Number(formData.get("policyValueId")),
     reason: String(formData.get("reason") ?? ""),
   });
@@ -25,7 +25,7 @@ export async function revertAction(key: string, formData: FormData): Promise<voi
 export async function cancelScheduledAction(key: string, formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const result = await cancelScheduledSetting(db, {
-    actor: { id: admin.id, role: admin.role, ip: admin.ip },
+    actor: admin,
     policyValueId: Number(formData.get("policyValueId")),
     reason: String(formData.get("reason") ?? ""),
   });

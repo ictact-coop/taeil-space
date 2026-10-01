@@ -2,7 +2,7 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import type { AdminRoleName } from "@/domain/settings/define";
+import { hasPermission, normalizePermissions, type Permission, type PermissionHolder } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { clientIpFrom } from "@/server/security/client-ip";
 import { createSession, deleteSession, validateSession, type RequestMeta } from "./service";
@@ -48,11 +48,12 @@ export const getCurrentAdmin = cache(async () => {
   return validateSession(db, token);
 });
 
-export interface CurrentAdmin {
+export interface CurrentAdmin extends PermissionHolder {
   id: string;
   name: string;
   loginId: string;
-  role: AdminRoleName;
+  gradeId: string;
+  gradeName: string;
   ip: string | null;
   /** 현재 로그인 세션 id (비밀번호 변경 시 이 세션만 남긴다) */
   sessionId: string;
@@ -60,18 +61,34 @@ export interface CurrentAdmin {
 
 /**
  * 관리자 화면·서버 액션 첫 줄에서 호출한다. 2단계 인증까지 마친 세션만 통과한다.
- * roles를 주면 해당 역할(또는 시스템 관리자)만 통과한다.
+ * permission을 주면 등급에 그 권한이 있어야 통과한다(최고 관리자는 항상 통과).
+ * 권한은 요청마다 등급에서 읽으므로 등급 설정을 바꾸면 바로 적용된다.
  */
-export async function requireAdmin(roles?: readonly AdminRoleName[]): Promise<CurrentAdmin> {
+export async function requireAdmin(permission?: Permission): Promise<CurrentAdmin> {
   const current = await getCurrentAdmin();
   if (!current) redirect("/admin/login");
   if (!current.session.mfaVerified) {
     redirect(current.user.totpEnabledAt ? "/admin/login/verify" : "/admin/login/setup-2fa");
   }
-  const role = current.user.role;
-  if (roles && role !== "system" && !roles.includes(role)) redirect("/admin?denied=1");
+  const holder = adminPermissions(current);
+  if (permission && !hasPermission(holder, permission)) redirect("/admin?denied=1");
   const meta = await requestMeta();
-  return { id: current.user.id, name: current.user.name, loginId: current.user.loginId, role, ip: meta.ip ?? null, sessionId: current.session.id };
+  return {
+    id: current.user.id,
+    name: current.user.name,
+    loginId: current.user.loginId,
+    gradeId: current.grade.id,
+    gradeName: current.grade.name,
+    ...holder,
+    ip: meta.ip ?? null,
+    sessionId: current.session.id,
+  };
+}
+
+/** route handler용: getCurrentAdmin 결과의 권한 (2단계 인증 전이면 권한 없음) */
+export function adminPermissions(current: Awaited<ReturnType<typeof getCurrentAdmin>>): PermissionHolder {
+  if (!current?.session.mfaVerified) return { isSuper: false, permissions: [] };
+  return { isSuper: current.grade.isSuper, permissions: normalizePermissions(current.grade.permissions) };
 }
 
 /** 비밀번호만 확인된(2단계 인증 전) 세션 */

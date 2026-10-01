@@ -40,7 +40,7 @@ export default async function SettingsIndexPage({ searchParams }: { searchParams
           {items.map((item) => {
             const style = stateStyles[item.state];
             const confirmable =
-              item.state === "confirm" && item.settingKey && isSettingKey(item.settingKey) && canEditSetting(admin.role, item.settingKey);
+              item.state === "confirm" && item.settingKey && isSettingKey(item.settingKey) && canEditSetting(admin, item.settingKey);
             return (
               <li key={item.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">

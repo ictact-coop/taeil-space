@@ -4,7 +4,7 @@ import { classifyHistory, pickEffectiveRow, type HistoryStatus, type PolicyRow }
 import { sameJson } from "@/lib/stable-json";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, type MutationResult, requireReason } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { adminUsers, feeSchedules, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
@@ -72,7 +72,7 @@ export async function saveFeeSchedule(
   db: Db,
   params: { actor: Actor; items: unknown; effectiveFrom: Date; reason: string; now?: Date },
 ): Promise<MutationResult<{ id: number }>> {
-  assertCanManage(params.actor.role, "fees");
+  assertPermission(params.actor, "pricing.manage");
   const now = params.now ?? new Date();
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
@@ -130,7 +130,7 @@ export async function cancelScheduledFeeSchedule(
   db: Db,
   params: { actor: Actor; id: number; reason: string; now?: Date },
 ): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "fees");
+  assertPermission(params.actor, "pricing.manage");
   const now = params.now ?? new Date();
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };

@@ -4,7 +4,7 @@ import { evaluateClosure, type ClosureRule } from "@/domain/calendar/closures";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, fieldErrorsFrom, type MutationResult, requireReason } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { applications, closureRules, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
@@ -88,7 +88,7 @@ export async function createClosureRule(
   db: Db,
   params: { actor: Actor; raw: Record<string, unknown>; reason: string; confirmConflicts?: boolean; now?: Date },
 ): Promise<CreateClosureResult> {
-  assertCanManage(params.actor.role, "closures");
+  assertPermission(params.actor, "schedule.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   const parsed = closureInputSchema.safeParse(params.raw);
@@ -125,7 +125,7 @@ export async function deactivateClosureRule(
   db: Db,
   params: { actor: Actor; id: string; reason: string },
 ): Promise<MutationResult> {
-  assertCanManage(params.actor.role, "closures");
+  assertPermission(params.actor, "schedule.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   return db.transaction(async (tx) => {

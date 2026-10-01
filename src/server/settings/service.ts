@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import type { AdminRoleName } from "@/domain/settings/define";
+import { hasPermission, type PermissionHolder } from "@/domain/auth/permissions";
 import { crossValidate } from "@/domain/settings/cross-validate";
 import {
   getDefinition,
@@ -21,8 +21,8 @@ export type SettingsActor = Actor;
 const PAST_TOLERANCE_MS = 10 * 60 * 1000;
 const MIN_REASON_LENGTH = 2;
 
-export function canEditSetting(role: AdminRoleName, key: SettingKey): boolean {
-  return role === "system" || getDefinition(key).editableBy.includes(role);
+export function canEditSetting(holder: PermissionHolder, key: SettingKey): boolean {
+  return hasPermission(holder, getDefinition(key).editPermission);
 }
 
 export async function loadPolicyRows(db: DbOrTx): Promise<PolicyRow[]> {
@@ -178,7 +178,7 @@ export async function saveSettingChanges(
   const parsed: TypedChange[] = [];
   for (const [key, raw] of Object.entries(params.rawValues)) {
     if (!isSettingKey(key)) return { ok: false, formError: `알 수 없는 설정: ${key}`, fieldErrors };
-    if (!canEditSetting(params.actor.role, key)) {
+    if (!canEditSetting(params.actor, key)) {
       fieldErrors[key] = "이 설정을 수정할 권한이 없습니다.";
       continue;
     }
@@ -229,7 +229,7 @@ export async function revertSetting(
       return { ok: false, formError: "되돌릴 버전을 찾을 수 없습니다.", fieldErrors: {} } satisfies SaveResult;
     }
     const key = target.key;
-    if (!canEditSetting(params.actor.role, key)) {
+    if (!canEditSetting(params.actor, key)) {
       return { ok: false, formError: "이 설정을 수정할 권한이 없습니다.", fieldErrors: {} } satisfies SaveResult;
     }
     const parsed = getDefinition(key).schema.safeParse(target.value);
@@ -274,7 +274,7 @@ export async function cancelScheduledSetting(
       return { ok: false, formError: "예약된 변경을 찾을 수 없습니다.", fieldErrors: {} } satisfies SaveResult;
     }
     const key = target.key;
-    if (!canEditSetting(params.actor.role, key)) {
+    if (!canEditSetting(params.actor, key)) {
       return { ok: false, formError: "이 설정을 수정할 권한이 없습니다.", fieldErrors: {} } satisfies SaveResult;
     }
     if (target.effectiveFrom.getTime() <= now.getTime()) {
@@ -348,7 +348,7 @@ export async function confirmSettings(
   const keys = params.keys.filter(isSettingKey);
   if (keys.length === 0) return { ok: false, formError: "확정할 항목이 없습니다.", fieldErrors: {} };
   for (const key of keys) {
-    if (!canEditSetting(params.actor.role, key)) {
+    if (!canEditSetting(params.actor, key)) {
       return { ok: false, formError: `${getDefinition(key).label}: 수정 권한이 없습니다.`, fieldErrors: {} };
     }
   }

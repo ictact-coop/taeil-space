@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { discountInputSchema } from "@/domain/pricing/discount-input";
 import { writeAudit } from "@/server/audit/log";
 import { type Actor, fieldErrorsFrom, type MutationResult, requireReason } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { discountRules } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 
@@ -21,7 +21,7 @@ export async function saveDiscountRule(
   db: Db,
   params: { actor: Actor; id: string | null; raw: Record<string, unknown>; reason: string },
 ): Promise<MutationResult<DiscountRule>> {
-  assertCanManage(params.actor.role, "discounts");
+  assertPermission(params.actor, "pricing.manage");
   const reasonError = requireReason(params.reason);
   if (reasonError) return { ok: false, formError: reasonError };
   const parsed = discountInputSchema.safeParse(params.raw);

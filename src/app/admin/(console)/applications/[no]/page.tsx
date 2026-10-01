@@ -11,7 +11,7 @@ import { listNotes, organizationHistory, reviewChecks } from "@/server/applicati
 import { statusLabels } from "@/server/applications/transition";
 import { writeAudit } from "@/server/audit/log";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { listNotifications } from "@/server/notifications/queue";
 import { refundBasisLabels } from "@/server/payments/refunds";
@@ -45,15 +45,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export default async function ApplicationDetailPage({ params, searchParams }: { params: Promise<{ no: string }>; searchParams: Promise<{ done?: string; error?: string }> }) {
   const { no } = await params;
   const { done, error } = await searchParams;
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("applications.view");
   const data = await getApplicationForAdmin(db, no);
   if (!data) notFound();
   const { app, space, org } = data;
   // 개인정보 조회 이력 ([요구] 24장)
   await writeAudit(db, { actorType: "admin", actorId: admin.id, action: "pii.view", targetType: "application", targetId: app.id, ip: admin.ip });
   const [checks, orgHistory, notes, notifications] = await Promise.all([reviewChecks(db, app), organizationHistory(db, app), listNotes(db, app.id), listNotifications(db, app.id)]);
-  const canReview = canManage(admin.role, "review");
-  const canRefund = canManage(admin.role, "refunds");
+  const canReview = hasPermission(admin, "applications.review");
+  const canRefund = hasPermission(admin, "refunds.manage");
   const price = app.priceSnapshot as { items?: { label: string; amount: number }[] } | null;
   const policy = app.policySnapshot as { discount?: { name: string } | null } | null;
   const reviewable = ["submitted", "reviewing", "revision_requested"].includes(app.status);

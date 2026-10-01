@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, lt } from "drizzle-orm";
 import { writeAudit } from "@/server/audit/log";
-import { adminSessions, adminUsers } from "@/server/db/schema";
+import { adminGrades, adminSessions, adminUsers } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { decryptSecret, encryptSecret } from "./encryption";
 import { burnPasswordCheck, verifyPassword } from "./password";
@@ -16,6 +16,7 @@ export const SESSION_IDLE_MINUTES = 120;
 
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type AdminSession = typeof adminSessions.$inferSelect;
+export type AdminGrade = typeof adminGrades.$inferSelect;
 
 export interface RequestMeta {
   ip?: string | null;
@@ -99,12 +100,13 @@ export async function validateSession(
   db: Db,
   token: string,
   now: Date = new Date(),
-): Promise<{ session: AdminSession; user: AdminUser } | null> {
+): Promise<{ session: AdminSession; user: AdminUser; grade: AdminGrade } | null> {
   const id = hashToken(token);
   const [row] = await db
-    .select({ session: adminSessions, user: adminUsers })
+    .select({ session: adminSessions, user: adminUsers, grade: adminGrades })
     .from(adminSessions)
     .innerJoin(adminUsers, eq(adminUsers.id, adminSessions.adminUserId))
+    .innerJoin(adminGrades, eq(adminGrades.id, adminUsers.gradeId))
     .where(eq(adminSessions.id, id))
     .limit(1);
   if (!row) return null;

@@ -32,7 +32,7 @@ export default async function SettingHistoryPage({
   const { done, error } = await searchParams;
   const admin = await requireAdmin();
   const def = getDefinition(key);
-  const editable = canEditSetting(admin.role, key);
+  const editable = canEditSetting(admin, key);
   const history = await getSettingHistory(db, key);
   const now = new Date();
   const statuses = classifyHistory(

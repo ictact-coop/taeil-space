@@ -3,17 +3,14 @@
 import { useActionState, useState } from "react";
 import { type FormState, str } from "@/components/admin/form-state";
 import { FieldError, Notice } from "@/components/admin/ui";
-import type { AdminRoleName } from "@/domain/settings/define";
-import { roleLabels } from "@/lib/labels";
 import type { AccountFormState } from "./actions";
 
-const roles = Object.entries(roleLabels) as [AdminRoleName, string][];
-
-const roleHelp: Record<AdminRoleName, string> = {
-  rental: "신청 심사, 휴관일·일정 차단·접수기간 수정, 환불 처리",
-  accounting: "신청·결제 조회, 환불 처리",
-  system: "모든 기능과 정책 설정, 계정 관리, 감사 로그",
-};
+/** 등급 선택지 (최고 관리자가 아니면 최고 관리자 등급은 빠진 목록을 받는다) */
+export interface GradeOption {
+  id: string;
+  name: string;
+  description: string;
+}
 
 /** 임시 비밀번호는 이 화면에서 한 번만 보여 준다. */
 function TemporaryPassword({ loginId, password }: { loginId?: string; password: string }) {
@@ -37,29 +34,30 @@ function TemporaryPassword({ loginId, password }: { loginId?: string; password: 
   );
 }
 
-function RoleSelect({ defaultValue, error }: { defaultValue: string; error?: string }) {
-  const [role, setRole] = useState(defaultValue as AdminRoleName);
+function GradeSelect({ grades, defaultValue, error }: { grades: GradeOption[]; defaultValue: string; error?: string }) {
+  const [gradeId, setGradeId] = useState(defaultValue || grades[0]?.id || "");
+  const selected = grades.find((g) => g.id === gradeId);
   return (
     <label className="flex flex-col gap-1 text-sm font-medium">
-      역할
-      <select name="role" value={role} onChange={(e) => setRole(e.target.value as AdminRoleName)} className="input" aria-describedby="role-help role-error">
-        {roles.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
+      등급
+      <select name="gradeId" value={gradeId} onChange={(e) => setGradeId(e.target.value)} className="input" aria-describedby="grade-help grade-error">
+        {grades.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
           </option>
         ))}
       </select>
-      <span id="role-help" className="text-xs font-normal text-muted">
-        {roleHelp[role]}
+      <span id="grade-help" className="text-xs font-normal text-muted">
+        {selected?.description}
       </span>
-      <FieldError id="role-error" message={error} />
+      <FieldError id="grade-error" message={error} />
     </label>
   );
 }
 
 type CreateAction = (prev: AccountFormState, form: FormData) => Promise<AccountFormState>;
 
-export function CreateAccountForm({ action }: { action: CreateAction }) {
+export function CreateAccountForm({ action, grades, defaultGradeId }: { action: CreateAction; grades: GradeOption[]; defaultGradeId: string }) {
   const [state, formAction, pending] = useActionState(action, { version: 0 });
   const v = state.values;
   const e = state.fieldErrors ?? {};
@@ -80,7 +78,7 @@ export function CreateAccountForm({ action }: { action: CreateAction }) {
             <input name="name" defaultValue={str(v, "name", "")} className="input" autoComplete="off" aria-describedby="name-error" aria-invalid={Boolean(e.name)} />
             <FieldError id="name-error" message={e.name} />
           </label>
-          <RoleSelect defaultValue={str(v, "role", "rental")} error={e.role} />
+          <GradeSelect grades={grades} defaultValue={str(v, "gradeId", defaultGradeId)} error={e.gradeId} />
         </div>
         <div>
           <button type="submit" className="btn-primary" disabled={pending}>
@@ -94,7 +92,20 @@ export function CreateAccountForm({ action }: { action: CreateAction }) {
 
 type UpdateAction = (prev: FormState, form: FormData) => Promise<FormState>;
 
-export function EditAccountForm({ action, name, role, self }: { action: UpdateAction; name: string; role: AdminRoleName; self: boolean }) {
+export function EditAccountForm({
+  action,
+  name,
+  grade,
+  grades,
+  gradeLocked,
+}: {
+  action: UpdateAction;
+  name: string;
+  grade: GradeOption;
+  grades: GradeOption[];
+  /** 자기 계정이거나 최고 관리자 계정을 최고 관리자가 아닌 사람이 볼 때 */
+  gradeLocked: string | null;
+}) {
   const [state, formAction, pending] = useActionState(action, { version: 0 });
   const v = state.values;
   const e = state.fieldErrors ?? {};
@@ -108,15 +119,15 @@ export function EditAccountForm({ action, name, role, self }: { action: UpdateAc
           <input name="name" defaultValue={str(v, "name", name)} className="input" aria-describedby="name-error" aria-invalid={Boolean(e.name)} />
           <FieldError id="name-error" message={e.name} />
         </label>
-        {self ? (
+        {gradeLocked ? (
           <div className="flex flex-col gap-1 text-sm font-medium">
-            역할
-            <input type="hidden" name="role" value={role} />
-            <p className="input bg-cream/50">{roleLabels[role]}</p>
-            <span className="text-xs font-normal text-muted">자기 계정의 역할은 다른 시스템 관리자가 바꿉니다.</span>
+            등급
+            <input type="hidden" name="gradeId" value={grade.id} />
+            <p className="input bg-cream/50">{grade.name}</p>
+            <span className="text-xs font-normal text-muted">{gradeLocked}</span>
           </div>
         ) : (
-          <RoleSelect defaultValue={str(v, "role", role)} error={e.role} />
+          <GradeSelect grades={grades} defaultValue={str(v, "gradeId", grade.id)} error={e.gradeId} />
         )}
       </div>
       <div>

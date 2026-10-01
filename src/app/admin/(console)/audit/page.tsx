@@ -17,7 +17,7 @@ function preview(value: unknown): string {
 }
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ before?: string }> }) {
-  await requireAdmin(["system"]);
+  await requireAdmin("audit.view");
   const before = Number((await searchParams).before);
   const rows = await listAuditLogs(db, { before, limit: PAGE_SIZE });
   const last = rows.at(-1)?.log.id;

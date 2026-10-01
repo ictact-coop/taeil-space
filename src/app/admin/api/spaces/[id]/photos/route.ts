@@ -1,5 +1,5 @@
-import { getCurrentAdmin, requestMeta } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
+import { adminPermissions, getCurrentAdmin, requestMeta } from "@/server/auth/current";
 import { db } from "@/server/db/client";
 import { badRequest, json } from "@/server/http/json";
 import { isSameOrigin } from "@/server/security/same-origin";
@@ -10,14 +10,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!isSameOrigin(req)) return json({ error: "허용되지 않은 요청입니다." }, { status: 403 });
   const current = await getCurrentAdmin();
   if (!current || !current.session.mfaVerified) return json({ error: "로그인이 필요합니다." }, { status: 401 });
-  if (!canManage(current.user.role, "spaces")) return json({ error: "권한이 없습니다." }, { status: 403 });
+  const permissions = adminPermissions(current);
+  if (!hasPermission(permissions, "spaces.manage")) return json({ error: "권한이 없습니다." }, { status: 403 });
   if (Number(req.headers.get("content-length") ?? 0) > PHOTO_MAX_BYTES + 64 * 1024) return badRequest("사진은 5MB 이하만 올릴 수 있습니다.");
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return badRequest("사진을 선택하세요.");
   const { id } = await params;
   const result = await addSpacePhoto(db, {
-    actor: { id: current.user.id, role: current.user.role, ip: (await requestMeta()).ip },
+    actor: { id: current.user.id, ...permissions, ip: (await requestMeta()).ip },
     spaceId: id,
     fileName: file.name,
     data: Buffer.from(await file.arrayBuffer()),

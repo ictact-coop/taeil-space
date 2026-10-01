@@ -4,7 +4,7 @@ import { Card, Notice, PageHeader, ReadOnlyNotice, ResultNotice } from "@/compon
 import type { HistoryStatus } from "@/domain/settings/resolve";
 import { formatKst } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { listFeeSchedules } from "@/server/pricing/fee-service";
 import { listSpaces } from "@/server/spaces/service";
@@ -24,7 +24,7 @@ const badges: Record<HistoryStatus, { label: string; className: string } | null>
 export default async function FeesPage({ searchParams }: { searchParams: Promise<{ done?: string; error?: string }> }) {
   const admin = await requireAdmin();
   const { done, error } = await searchParams;
-  const editable = canManage(admin.role, "fees");
+  const editable = hasPermission(admin, "pricing.manage");
   const [versions, spaces] = await Promise.all([listFeeSchedules(db), listSpaces(db)]);
   const spaceList = spaces.map((s) => ({ id: s.id, name: s.name }));
   const active = versions.find((v) => v.status === "active");

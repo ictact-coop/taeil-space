@@ -11,7 +11,7 @@ import { refundBasisLabels } from "@/server/payments/refunds";
 export const metadata: Metadata = { title: "환불 처리" };
 
 export default async function RefundsPage() {
-  await requireAdmin();
+  await requireAdmin("refunds.manage");
   const rows = await listRefundsNeedingAction(db);
   return (
     <div className="mx-auto max-w-5xl">

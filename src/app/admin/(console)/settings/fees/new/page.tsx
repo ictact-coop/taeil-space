@@ -11,7 +11,7 @@ import { FeeEditor } from "./fee-editor";
 export const metadata: Metadata = { title: "새 요금표" };
 
 export default async function NewFeeSchedulePage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
-  await requireAdmin(["system"]);
+  await requireAdmin("pricing.manage");
   const from = Number((await searchParams).from);
   const [versions, spaces] = await Promise.all([listFeeSchedules(db), listSpaces(db)]);
   const base = versions.find((v) => v.id === from)?.items ?? null;

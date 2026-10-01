@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader, ReadOnlyNotice } from "@/components/admin/ui";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { db } from "@/server/db/client";
 import { getSpace } from "@/server/spaces/service";
 import { listSpacePhotos } from "@/server/spaces/photos";
@@ -21,7 +21,7 @@ export default async function EditSpacePage({ params }: { params: Promise<{ id: 
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const space = await getSpace(db, id);
   if (!space) notFound();
-  const editable = canManage(admin.role, "spaces");
+  const editable = hasPermission(admin, "spaces.manage");
   const photos = await listSpacePhotos(db, space.id);
   return (
     <div>

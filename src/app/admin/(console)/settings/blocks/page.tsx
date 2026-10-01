@@ -3,7 +3,7 @@ import { Card, PageHeader, ReadOnlyNotice, ResultNotice } from "@/components/adm
 import { blockKindLabels } from "@/domain/calendar/block-input";
 import { formatKst, toKstLocalInput } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { listUpcomingBlocks } from "@/server/calendar/block-service";
 import { db } from "@/server/db/client";
 import { listSpaces } from "@/server/spaces/service";
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "일정 차단" };
 export default async function BlocksPage({ searchParams }: { searchParams: Promise<{ done?: string; error?: string }> }) {
   const admin = await requireAdmin();
   const { done, error } = await searchParams;
-  const editable = canManage(admin.role, "blocks");
+  const editable = hasPermission(admin, "schedule.manage");
   const [blocks, spaces] = await Promise.all([listUpcomingBlocks(db), listSpaces(db)]);
 
   return (

@@ -4,7 +4,7 @@ import { Card, PageHeader, ReadOnlyNotice, ResultNotice } from "@/components/adm
 import { closureTypeLabels, describeClosureRule } from "@/domain/calendar/closures";
 import { kstDateOf } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/current";
-import { canManage } from "@/server/auth/permissions";
+import { hasPermission } from "@/domain/auth/permissions";
 import { listClosureRules, toClosureRule } from "@/server/calendar/closure-service";
 import { db } from "@/server/db/client";
 import { listSpaces } from "@/server/spaces/service";
@@ -21,7 +21,7 @@ export default async function ClosuresPage({
 }) {
   const admin = await requireAdmin();
   const { done, error, space, inactive, month } = await searchParams;
-  const editable = canManage(admin.role, "closures");
+  const editable = hasPermission(admin, "schedule.manage");
   const [rows, spaces] = await Promise.all([listClosureRules(db, { includeInactive: inactive === "1" }), listSpaces(db)]);
   const spaceName = new Map(spaces.map((s) => [s.id, s.name]));
   const activeRules = rows.filter((r) => r.isActive).map(toClosureRule);

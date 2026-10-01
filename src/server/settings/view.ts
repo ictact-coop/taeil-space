@@ -1,4 +1,5 @@
-import type { AdminRoleName, SettingGroup, SettingInput } from "@/domain/settings/define";
+import type { PermissionHolder } from "@/domain/auth/permissions";
+import type { SettingGroup, SettingInput } from "@/domain/settings/define";
 import { getDefinition, settingKeys, type SettingKey } from "@/domain/settings/definitions";
 import { resolveSetting, upcomingRows, type PolicyRow } from "@/domain/settings/resolve";
 import { formatKst } from "@/lib/time";
@@ -25,7 +26,7 @@ export interface SettingFieldView {
 export function buildFieldViews(
   group: SettingGroup,
   rows: readonly PolicyRow[],
-  role: AdminRoleName,
+  holder: PermissionHolder,
   now: Date,
 ): SettingFieldView[] {
   return settingKeys
@@ -44,7 +45,7 @@ export function buildFieldViews(
         defaultDisplay: def.format(def.defaultValue),
         source: resolved.source,
         invalidStored: resolved.invalidStored,
-        editable: canEditSetting(role, key),
+        editable: canEditSetting(holder, key),
         requiredBeforeOpen: def.requiredBeforeOpen,
         since: resolved.row ? formatKst(resolved.row.effectiveFrom) : null,
         upcoming: upcomingRows(rows, key, now, def.defaultValue).map((row) => {

@@ -3,7 +3,7 @@ import { checkBooking, halfYearRange, type Violation } from "@/domain/booking/ru
 import { kstDateOf } from "@/lib/time";
 import { toMinutesOfDay } from "@/lib/time-of-day";
 import type { Actor, MutationResult } from "@/server/actor";
-import { assertCanManage } from "@/server/auth/permissions";
+import { assertPermission } from "@/server/auth/permissions";
 import { occupancyRange } from "@/server/booking/availability";
 import { loadBookingContext, loadBusyIntervals } from "@/server/booking/context";
 import { applicationNotes, applications, adminUsers, payments, slotOccupancies, spaces } from "@/server/db/schema";
@@ -47,14 +47,14 @@ const reasonOf = (s: string, label: string) => {
 };
 
 export async function startReview(db: Db, p: { actor: Actor; applicationId: string }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   return withApplication(db, null, p.applicationId, async (tx, app) => {
     await transition(tx, app, "reviewing", { actorType: "admin", actorId: p.actor.id, reason: "검토 시작", patch: { reviewStartedAt: new Date() }, ip: p.actor.ip });
   });
 }
 
 export async function requestRevision(db: Db, p: { actor: Actor; applicationId: string; message: string; now?: Date }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   const now = p.now ?? new Date();
   return withApplication(db, null, p.applicationId, async (tx, app) => {
     const message = reasonOf(p.message, "보완 요청 내용");
@@ -76,7 +76,7 @@ export async function requestRevision(db: Db, p: { actor: Actor; applicationId: 
 
 /** 반려: 일정을 풀고 결제 금액 전액을 자동 환불한다 (AT-13) */
 export async function rejectApplication(db: Db, gateway: PaymentGateway | null, p: { actor: Actor; applicationId: string; reason: string }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   return withApplication(db, gateway, p.applicationId, async (tx, app) => {
     const reason = reasonOf(p.reason, "반려 사유");
     await transition(tx, app, "rejected", { actorType: "admin", actorId: p.actor.id, reason, patch: { decidedAt: new Date(), decidedBy: p.actor.id, decisionReason: reason }, ip: p.actor.ip });
@@ -89,7 +89,7 @@ export async function rejectApplication(db: Db, gateway: PaymentGateway | null, 
 
 /** 승인: 예약확정 (v0.2: 결제 후 승인하면 확정) */
 export async function approveApplication(db: Db, p: { actor: Actor; applicationId: string; note?: string }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   return withApplication(db, null, p.applicationId, async (tx, app) => {
     const [occ] = await tx.select().from(slotOccupancies).where(eq(slotOccupancies.applicationId, app.id)).for("update");
     if (!occ || occ.kind !== "held") throw new TransitionError("일정 확보 상태가 올바르지 않아 승인할 수 없습니다. 시스템 관리자에게 문의하세요.");
@@ -107,7 +107,7 @@ export async function approveApplication(db: Db, p: { actor: Actor; applicationI
 
 /** 계좌이체 입금 확인 → 신청접수 */
 export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: string; note: string; now?: Date }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   const now = p.now ?? new Date();
   return withApplication(db, null, p.applicationId, async (tx, app) => {
     const note = reasonOf(p.note, "입금 확인 내용(입금자·일시)");
@@ -127,7 +127,7 @@ export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: s
 }
 
 export async function addNote(db: Db, p: { actor: Actor; applicationId: string; body: string }): Promise<MutationResult> {
-  assertCanManage(p.actor.role, "review");
+  assertPermission(p.actor, "applications.review");
   const body = p.body.trim();
   if (body.length < 1) return { ok: false, formError: "메모를 입력하세요." };
   await db.insert(applicationNotes).values({ applicationId: p.applicationId, authorId: p.actor.id, body: body.slice(0, 2000) });

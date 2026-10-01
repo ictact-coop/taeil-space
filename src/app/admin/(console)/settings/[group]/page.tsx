@@ -24,7 +24,7 @@ export default async function SettingsGroupPage({ params }: { params: Promise<{ 
   if (!isGroup(group)) notFound();
   const admin = await requireAdmin();
   const now = new Date();
-  const fields = buildFieldViews(group, await loadPolicyRows(db), admin.role, now);
+  const fields = buildFieldViews(group, await loadPolicyRows(db), admin, now);
 
   return (
     <div>

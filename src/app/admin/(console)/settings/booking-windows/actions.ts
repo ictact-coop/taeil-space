@@ -26,7 +26,7 @@ async function run(fn: () => Promise<MutationResult>): Promise<MutationResult> {
 export async function extendWindowAction(spaceId: string, form: FormData): Promise<void> {
   const admin = await requireAdmin();
   const r = await run(() =>
-    extendBookingWindow(db, { actor: { id: admin.id, role: admin.role, ip: admin.ip }, spaceId, reason: String(form.get("reason") ?? "") }),
+    extendBookingWindow(db, { actor: admin, spaceId, reason: String(form.get("reason") ?? "") }),
   );
   back(r, "접수기간을 연장했습니다.");
 }
@@ -35,7 +35,7 @@ export async function setWindowAction(spaceId: string, form: FormData): Promise<
   const admin = await requireAdmin();
   const r = await run(() =>
     setBookingWindow(db, {
-      actor: { id: admin.id, role: admin.role, ip: admin.ip },
+      actor: admin,
       spaceId,
       opensFrom: String(form.get("opensFrom") ?? ""),
       opensUntil: String(form.get("opensUntil") ?? ""),

@@ -49,7 +49,7 @@ export async function saveSettingsAction(
   }
 
   const result = await saveSettingChanges(db, {
-    actor: { id: admin.id, role: admin.role, ip: admin.ip },
+    actor: admin,
     rawValues,
     effectiveFrom,
     reason,

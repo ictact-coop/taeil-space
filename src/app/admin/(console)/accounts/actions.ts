@@ -21,10 +21,10 @@ const actionMessages: Record<AccountAction, string> = {
 };
 
 export async function createAccountAction(prev: AccountFormState, form: FormData): Promise<AccountFormState> {
-  const admin = await requireAdmin(["system"]);
+  const admin = await requireAdmin("accounts.manage");
   return guard(prev, async () => {
     const s = (k: string) => String(form.get(k) ?? "");
-    const r = await createAdminAccount(db, { actor: admin, raw: { loginId: s("loginId"), name: s("name"), role: s("role") } });
+    const r = await createAdminAccount(db, { actor: admin, raw: { loginId: s("loginId"), name: s("name"), gradeId: s("gradeId") } });
     if (!r.ok) return { version: prev.version + 1, formError: r.formError ?? "입력값을 확인하세요.", fieldErrors: r.fieldErrors, values: formValues(form) };
     revalidatePath("/admin/accounts");
     return {
@@ -38,17 +38,17 @@ export async function createAccountAction(prev: AccountFormState, form: FormData
 }
 
 export async function updateAccountAction(userId: string, prev: FormState, form: FormData): Promise<FormState> {
-  const admin = await requireAdmin(["system"]);
+  const admin = await requireAdmin("accounts.manage");
   return guard(prev, async () => {
-    const r = await updateAdminAccount(db, { actor: admin, userId, raw: { name: String(form.get("name") ?? ""), role: String(form.get("role") ?? "") } });
+    const r = await updateAdminAccount(db, { actor: admin, userId, raw: { name: String(form.get("name") ?? ""), gradeId: String(form.get("gradeId") ?? "") } });
     if (!r.ok) return { version: prev.version + 1, formError: r.formError ?? "입력값을 확인하세요.", fieldErrors: r.fieldErrors, values: formValues(form) };
     revalidatePath("/admin/accounts", "layout");
-    return { version: prev.version + 1, ok: true, message: "저장했습니다. 역할을 바꿨다면 그 계정은 다시 로그인해야 합니다." };
+    return { version: prev.version + 1, ok: true, message: "저장했습니다. 등급을 바꿨다면 그 계정은 다시 로그인해야 합니다." };
   });
 }
 
 export async function accountCommandAction(userId: string, action: AccountAction, prev: AccountFormState, form: FormData): Promise<AccountFormState> {
-  const admin = await requireAdmin(["system"]);
+  const admin = await requireAdmin("accounts.manage");
   return guard(prev, async () => {
     if (form.get("confirm") !== "yes") return { version: prev.version + 1, formError: "확인 항목에 체크하세요." };
     const r = await applyAccountAction(db, { actor: admin, userId, action });
