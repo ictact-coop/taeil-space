@@ -24,7 +24,7 @@ export async function createAccountAction(prev: AccountFormState, form: FormData
   const admin = await requireAdmin("accounts.manage");
   return guard(prev, async () => {
     const s = (k: string) => String(form.get(k) ?? "");
-    const r = await createAdminAccount(db, { actor: admin, raw: { loginId: s("loginId"), name: s("name"), gradeId: s("gradeId") } });
+    const r = await createAdminAccount(db, { actor: admin, raw: { loginId: s("loginId"), name: s("name"), gradeId: s("gradeId"), email: s("email") } });
     if (!r.ok) return { version: prev.version + 1, formError: r.formError ?? "입력값을 확인하세요.", fieldErrors: r.fieldErrors, values: formValues(form) };
     revalidatePath("/admin/accounts");
     return {
@@ -40,7 +40,7 @@ export async function createAccountAction(prev: AccountFormState, form: FormData
 export async function updateAccountAction(userId: string, prev: FormState, form: FormData): Promise<FormState> {
   const admin = await requireAdmin("accounts.manage");
   return guard(prev, async () => {
-    const r = await updateAdminAccount(db, { actor: admin, userId, raw: { name: String(form.get("name") ?? ""), gradeId: String(form.get("gradeId") ?? "") } });
+    const r = await updateAdminAccount(db, { actor: admin, userId, raw: { name: String(form.get("name") ?? ""), gradeId: String(form.get("gradeId") ?? ""), email: String(form.get("email") ?? "") } });
     if (!r.ok) return { version: prev.version + 1, formError: r.formError ?? "입력값을 확인하세요.", fieldErrors: r.fieldErrors, values: formValues(form) };
     revalidatePath("/admin/accounts", "layout");
     return { version: prev.version + 1, ok: true, message: "저장했습니다. 등급을 바꿨다면 그 계정은 다시 로그인해야 합니다." };

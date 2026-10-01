@@ -1,5 +1,6 @@
 import { PgBoss } from "pg-boss";
 import { expireRevisions } from "@/server/applications/applicant-actions";
+import { purgePasswordResets } from "@/server/auth/recovery";
 import { purgeExpiredSessions } from "@/server/auth/service";
 import { purgeOrphanAttachments } from "@/server/booking/attachments";
 import { sendDepositReminders } from "@/server/booking/deposit-reminder";
@@ -30,6 +31,7 @@ export const jobs = {
   "expire-revisions": { cron: "*/10 * * * *", run: (db: Db) => expireRevisions(db, getGateway()) },
   "purge-orphan-attachments": { cron: "17 * * * *", run: (db: Db) => purgeOrphanAttachments(db, new Date(Date.now() - 24 * 3600_000)) },
   "purge-expired-sessions": { cron: "23 * * * *", run: async (db: Db) => (await purgeExpiredSessions(db), 0) },
+  "purge-password-resets": { cron: "47 3 * * *", run: (db: Db) => purgePasswordResets(db) },
   "purge-rate-limits": { cron: "41 * * * *", run: (db: Db) => purgeRateLimits(db) },
 } as const;
 

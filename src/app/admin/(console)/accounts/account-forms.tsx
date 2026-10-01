@@ -34,6 +34,19 @@ function TemporaryPassword({ loginId, password }: { loginId?: string; password: 
   );
 }
 
+function EmailInput({ defaultValue, error }: { defaultValue: string; error?: string }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm font-medium">
+      이메일 <span className="text-xs font-normal text-muted">(선택)</span>
+      <input name="email" type="email" defaultValue={defaultValue} className="input" autoComplete="off" aria-describedby="email-help email-error" aria-invalid={Boolean(error)} />
+      <span id="email-help" className="text-xs font-normal text-muted">
+        아이디 찾기·비밀번호 재설정 메일을 받을 주소입니다. 비우면 본인이 직접 찾을 수 없습니다.
+      </span>
+      <FieldError id="email-error" message={error} />
+    </label>
+  );
+}
+
 function GradeSelect({ grades, defaultValue, error }: { grades: GradeOption[]; defaultValue: string; error?: string }) {
   const [gradeId, setGradeId] = useState(defaultValue || grades[0]?.id || "");
   const selected = grades.find((g) => g.id === gradeId);
@@ -67,7 +80,7 @@ export function CreateAccountForm({ action, grades, defaultGradeId }: { action: 
       {state.temporaryPassword && <TemporaryPassword loginId={state.loginId} password={state.temporaryPassword} />}
       <form key={state.version} action={formAction} className="flex flex-col gap-4" noValidate>
         {state.formError && <Notice kind="error">{state.formError}</Notice>}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium">
             아이디
             <input name="loginId" defaultValue={str(v, "loginId", "")} className="input" autoComplete="off" aria-describedby="loginId-error" aria-invalid={Boolean(e.loginId)} />
@@ -78,6 +91,7 @@ export function CreateAccountForm({ action, grades, defaultGradeId }: { action: 
             <input name="name" defaultValue={str(v, "name", "")} className="input" autoComplete="off" aria-describedby="name-error" aria-invalid={Boolean(e.name)} />
             <FieldError id="name-error" message={e.name} />
           </label>
+          <EmailInput defaultValue={str(v, "email", "")} error={e.email} />
           <GradeSelect grades={grades} defaultValue={str(v, "gradeId", defaultGradeId)} error={e.gradeId} />
         </div>
         <div>
@@ -95,12 +109,14 @@ type UpdateAction = (prev: FormState, form: FormData) => Promise<FormState>;
 export function EditAccountForm({
   action,
   name,
+  email,
   grade,
   grades,
   gradeLocked,
 }: {
   action: UpdateAction;
   name: string;
+  email: string | null;
   grade: GradeOption;
   grades: GradeOption[];
   /** 자기 계정이거나 최고 관리자 계정을 최고 관리자가 아닌 사람이 볼 때 */
@@ -119,6 +135,7 @@ export function EditAccountForm({
           <input name="name" defaultValue={str(v, "name", name)} className="input" aria-describedby="name-error" aria-invalid={Boolean(e.name)} />
           <FieldError id="name-error" message={e.name} />
         </label>
+        <EmailInput defaultValue={str(v, "email", email ?? "")} error={e.email} />
         {gradeLocked ? (
           <div className="flex flex-col gap-1 text-sm font-medium">
             등급

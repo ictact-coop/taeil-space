@@ -36,7 +36,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       />
       <Card>
         <h2 className="mb-3 font-semibold text-navy">기본 정보</h2>
-        <EditAccountForm action={updateAccountAction.bind(null, account.id)} name={account.name} grade={current} grades={assignable} gradeLocked={gradeLocked} />
+        <EditAccountForm action={updateAccountAction.bind(null, account.id)} name={account.name} email={account.email} grade={current} grades={assignable} gradeLocked={gradeLocked} />
       </Card>
       <Card>
         <h2 className="mb-3 font-semibold text-navy">계정 조치</h2>
