@@ -53,7 +53,7 @@
 
 ## 2. 처음 배포하기
 
-배포에 필요한 일은 `deploy/` 폴더의 스크립트로 한다. 모든 단계를 이 환경에서 그대로 리허설했다(2.7).
+배포에 필요한 일은 `deploy/` 폴더의 스크립트로 한다. 모든 단계를 이 환경에서 그대로 리허설했다(2.8).
 
 | 스크립트 | 하는 일 |
 |---|---|
@@ -133,11 +133,42 @@ $C run --rm --no-deps web pnpm preflight --smtp                             # �
 3. `./deploy.sh`로 다시 배포한다.
 4. 관리자 화면에서 결제 방식을 PG로 바꾼다. 소액 실결제 점검은 체크리스트 D절대로 한다.
 
-### 2.6 Docker Hub 다운로드 제한
+### 2.6 운영 이미지 받기 (GitHub에서 빌드)
+
+작은 서버(2GB)에서 이미지를 빌드하면 메모리가 모자라 수십 분 걸린다. 그래서 이미지는 GitHub가 만들고, 서버는 받기만 한다.
+
+1. PR이 `main`에 병합되면 GitHub Actions의 **Release image** 작업이 이미지를 만들어 올린다. 보통 3~5분 걸린다.
+   - 올라가는 곳: `ghcr.io/ictact-coop/taeil-space:<커밋 SHA>` (GitHub 저장소 → Packages)
+2. 서버에서 `./deploy.sh`를 실행한다. 서버가 받은 코드의 커밋과 같은 이미지를 받는다.
+   - 아직 이미지가 없으면(방금 병합해서 빌드 중) 30초마다 다시 시도하며 최대 15분 기다린다(`PULL_WAIT`, 초 단위).
+   - 이미지를 받지 못하면 백업·교체 전에 멈춘다. 운영 중인 사이트는 그대로다.
+3. `.env`의 `REGISTRY_IMAGE`가 이 동작을 켠다.
+   - `setup-server.sh`가 GitHub 저장소 주소를 보고 자동으로 채운다.
+   - 예전에 만든 서버라면 `.env`에 `REGISTRY_IMAGE=ghcr.io/ictact-coop/taeil-space` 한 줄을 넣는다.
+   - 비우면 예전처럼 서버에서 빌드한다. 한 번만 서버에서 빌드하려면 `BUILD_ON_SERVER=1 ./deploy.sh`.
+
+**이미지 받기 권한 (처음 한 번)**
+
+GitHub 패키지는 처음 만들어질 때 비공개다. 둘 중 하나를 한다.
+
+- **(권장) 패키지를 공개로 바꾼다.** 저장소가 공개이고 이미지에는 비밀 값이 없다(`.env`는 서버에만 있다).
+  - GitHub 조직 → **Packages** → `taeil-space` → **Package settings** → Danger Zone의 **Change visibility** → Public.
+  - 조직 설정에서 공개 패키지를 막아 두었다면 조직 소유자가 먼저 허용해야 한다(Organization settings → Packages).
+- **비공개로 두고 서버에서 로그인한다.**
+  - GitHub → Settings → Developer settings → Personal access tokens (classic)에서 `read:packages` 권한만 있는 토큰을 만든다.
+  - 서버에서 한 번 실행한다. 이후 배포는 자동으로 이 로그인을 쓴다.
+    ```bash
+    echo '<토큰>' | sudo docker login ghcr.io -u <GitHub 아이디> --password-stdin
+    ```
+  - 토큰에 만료일이 있으면 만료 전에 새로 만들어 다시 로그인한다.
+
+권한이 없으면 `deploy.sh`가 "이미지를 받을 권한이 없습니다"라고 알려 준다.
+
+### 2.7 Docker Hub 다운로드 제한
 
 `postgres`·`caddy` 이미지를 받다가 `429 Too Many Requests`가 나면 `.env`의 `POSTGRES_IMAGE`, `CADDY_IMAGE`를 미러로 바꾼다. 예: `mirror.gcr.io/library/postgres:16`, `mirror.gcr.io/library/caddy:2`.
 
-### 2.7 리허설 결과 (2026-10-01)
+### 2.8 리허설 결과 (2026-10-01)
 
 이 환경에서 운영 이미지와 compose로 아래를 실제로 해 봤다.
 
@@ -147,14 +178,20 @@ $C run --rm --no-deps web pnpm preflight --smtp                             # �
 - **업데이트 배포**: 배포 전 백업(DB 덤프와 업로드 파일)이 만들어지고 새 버전으로 교체됐다.
 - **실패 배포**: 응답하지 않는 버전을 배포하자 45초 뒤 직전 버전으로 자동으로 되돌렸고, 서비스는 계속 응답했다.
 - **복구**: 백업 이후 추가한 데이터와 지운 업로드 파일이 백업 시점으로 돌아왔고, 작업 큐(pg-boss)도 정상이었다.
+- **이미지 받기 배포(2026-10-07)**: 로컬 이미지 저장소로 GHCR을 대신해 해 봤다.
+  - 첫 배포가 26초에 끝났다(서버 빌드 없음).
+  - 이미지가 아직 없는 커밋을 배포하자 30초마다 다시 시도하다가, 이미지가 올라오자 받아서 백업·교체를 마쳤다.
+  - 없는 이미지는 대기 시간이 지나자 백업·교체 전에 멈췄고, 사이트는 계속 응답했다.
 
 ## 3. 업데이트 배포
 
 ```bash
 cd /srv/taeil/deploy
-./deploy.sh            # 현재 브랜치(main)의 최신 코드
-./deploy.sh v1.0.1     # 특정 태그
+sudo ./deploy.sh            # 현재 브랜치(main)의 최신 코드
+sudo ./deploy.sh v1.0.1     # 특정 태그
 ```
+
+- GitHub가 만든 이미지를 받는다(2.6). 병합 직후라면 GitHub Actions의 **Release image**가 끝날 때까지(3~5분) 기다렸다가 진행한다.
 
 - 배포 전 백업이 자동으로 만들어진다.
 - 새 버전이 3분 안에 정상(healthy)이 되지 않으면 직전 버전으로 자동으로 돌아간다.
