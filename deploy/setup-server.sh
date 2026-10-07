@@ -56,6 +56,9 @@ if [ ! -f "$ENV_FILE" ]; then
   key="$(openssl rand -base64 32)"
   dbpw="$(openssl rand -hex 24)"
   sed -i "s|^APP_ENCRYPTION_KEY=.*|APP_ENCRYPTION_KEY=$key|" "$ENV_FILE"
+  # GitHub 저장소면 그 저장소의 이미지(ghcr.io/<owner>/<repo>)를 받도록, 아니면 서버에서 빌드하도록
+  gh_repo="$(echo "$REPO" | sed -nE 's#^(https://github\.com/|git@github\.com:)([^/]+/[^/.]+)(\.git)?/?$#\2#p' | tr 'A-Z' 'a-z')"
+  sed -i "s|^REGISTRY_IMAGE=.*|REGISTRY_IMAGE=${gh_repo:+ghcr.io/$gh_repo}|" "$ENV_FILE"
   sed -i "s|^LOCAL_DB_PASSWORD=.*|LOCAL_DB_PASSWORD=$dbpw|" "$ENV_FILE"
   sed -i "s|^DATABASE_URL=postgres://taeil:CHANGE_ME@db:5432/taeil|DATABASE_URL=postgres://taeil:$dbpw@db:5432/taeil|" "$ENV_FILE"
   unset key dbpw

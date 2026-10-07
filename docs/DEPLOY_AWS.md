@@ -215,7 +215,10 @@ cd /srv/taeil/deploy
 sudo ./deploy.sh
 ```
 
-처음에는 이미지를 빌드하느라 5~10분 걸린다. `web ... (healthy)`와 `배포 완료`가 나오면 성공이다.
+서버에서 빌드하지 않고 GitHub가 만든 이미지(`ghcr.io/ictact-coop/taeil-space`)를 받는다. 1~3분이면 끝난다. `web ... (healthy)`와 `배포 완료`가 나오면 성공이다.
+
+- 처음 한 번은 이미지를 받을 권한을 준비해야 한다. GitHub에서 패키지를 공개로 바꾸거나, 서버에서 `docker login ghcr.io`를 한다(`docs/DEPLOYMENT.md` 2.6).
+- 2GB 서버에서 직접 빌드(`BUILD_ON_SERVER=1`)하면 메모리가 모자라 수십 분 걸릴 수 있다.
 
 - 브라우저에서 `https://rent.taeil.org`가 열리고 주소창에 자물쇠가 보이는지 확인한다.
 - 인증서는 첫 접속 때 자동으로 발급된다. 몇십 초 걸릴 수 있다.
@@ -255,7 +258,7 @@ Lightsail 대신 EC2를 쓰면 다음만 다르다. 나머지 절차는 같다.
 
 | 할 일 | 방법 |
 |---|---|
-| 업데이트 배포 | `cd /srv/taeil/deploy && sudo ./deploy.sh` (배포 전 백업, 실패 시 자동 되돌리기) |
+| 업데이트 배포 | PR 병합 후 GitHub Actions **Release image**가 끝나면(3~5분) `cd /srv/taeil/deploy && sudo ./deploy.sh` (이미지 받기, 배포 전 백업, 실패 시 자동 되돌리기) |
 | 백업 확인 | S3 버킷 `daily/`에 날짜별 파일이 쌓이는지 주 1회 본다. 서버 기록은 `/var/log/taeil-backup.log` |
 | 복구 | `sudo ./restore.sh /srv/taeil-backups/db-…dump /srv/taeil-backups/uploads-….tar.gz`. 서버를 통째로 잃었으면 스냅샷에서 새 인스턴스를 만들거나, 새 서버에 6~8장을 다시 한 뒤 S3 백업으로 복구한다 |
 | 가동 감시 | UptimeRobot 등에 `https://rent.taeil.org/api/health`를 등록한다. Lightsail 인스턴스 → **지표**에서 CPU·상태 확인 경보도 켠다 |

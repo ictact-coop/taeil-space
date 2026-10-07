@@ -12,7 +12,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 # 빌드 중에는 DB에 접속하지 않는다. 연결 문자열 형식만 채워 둔다.
-RUN DATABASE_URL=postgres://build:build@localhost:5432/build pnpm build
+# 타입 검사는 CI(pnpm typecheck)가 하므로 이미지 빌드에서는 건너뛴다(next.config.ts).
+RUN DATABASE_URL=postgres://build:build@localhost:5432/build SKIP_BUILD_TYPECHECK=1 pnpm build
 
 FROM base AS runtime
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 STORAGE_DIR=/data/uploads
