@@ -87,13 +87,14 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 {app.contactName} · {app.contactPhone} · {app.contactEmail}
               </Row>
               <Row label="행사">
-                {app.eventTitle} <span className="text-xs text-muted">({app.eventPublic ? "공개" : "비공개"} 행사)</span>
+                {app.eventTitle}
               </Row>
               <Row label="목적·내용">
                 <p className="whitespace-pre-line">{app.eventPurpose}</p>
               </Row>
               <Row label="예상 인원">
                 {app.expectedHeadcount}명 (정원 {space.capacity}명{space.minHeadcount ? `, 최소 ${space.minHeadcount}명` : ""})
+                {app.expectedHeadcount > space.capacity && <span className="badge ml-2 bg-warning/10 text-warning">정원 초과 — 운영 가능 여부 확인</span>}
               </Row>
               {app.nightManagerName && (
                 <Row label="야간 출입문">
@@ -114,7 +115,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
           <Card>
             <h2 className="mb-2 font-semibold text-navy">자동검증</h2>
             {checks.length === 0 ? (
-              <p className="text-sm text-status-green">✓ 정원·일정 중복·휴관일·단체 제한 등 자동검증을 통과했습니다.</p>
+              <p className="text-sm text-status-green">✓ 일정 중복·휴관일·최소 인원·단체 제한 등 자동검증을 통과했습니다.</p>
             ) : (
               <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-danger">
                 {checks.map((c) => (
@@ -259,10 +260,16 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                       통장에서 {formatWon(app.totalAmount ?? 0)} 입금(입금자명에 신청번호 {app.applicationNo})을 확인한 뒤 누르세요.
                       {data.holdExpiresAt && ` 입금 기한: ${formatKst(data.holdExpiresAt)}`}
                     </p>
-                    <label className="text-sm">
-                      <span className="sr-only">입금 확인 내용</span>
-                      <input name="note" required placeholder="입금자명·입금일시 (예: 홍길동 10/2 14:10)" className="input mt-1" />
-                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        입금자명 (선택)
+                        <input name="depositorName" maxLength={50} placeholder="예: 홍길동" className="input text-sm" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        입금일시 (선택)
+                        <input name="depositedAt" type="datetime-local" className="input text-sm" />
+                      </label>
+                    </div>
                     <label className="flex items-start gap-2 text-sm">
                       <input type="checkbox" name="approve" value="yes" className="mt-1" />
                       <span>

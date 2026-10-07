@@ -107,13 +107,18 @@ export async function approveApplication(db: Db, p: { actor: Actor; applicationI
 
 /**
  * 계좌이체 입금 확인 → 신청접수. approve가 true면 같은 처리 안에서 승인(예약확정)까지 한다
- * (신청 내용을 이미 검토했고 입금만 기다리던 경우).
+ * (신청 내용을 이미 검토했고 입금만 기다리던 경우). 입금자명·입금일시는 선택 입력이다.
  */
-export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: string; note: string; approve?: boolean; now?: Date }): Promise<MutationResult> {
+export async function confirmDeposit(
+  db: Db,
+  p: { actor: Actor; applicationId: string; depositorName?: string; depositedAt?: string; note?: string; approve?: boolean; now?: Date },
+): Promise<MutationResult> {
   assertPermission(p.actor, "applications.review");
   const now = p.now ?? new Date();
   return withApplication(db, null, p.applicationId, async (tx, app) => {
-    const note = reasonOf(p.note, "입금 확인 내용(입금자·일시)");
+    const depositorName = (p.depositorName ?? "").trim().slice(0, 50);
+    const depositedAt = (p.depositedAt ?? "").trim().slice(0, 30);
+    const note = [depositorName && `입금자 ${depositorName}`, depositedAt && `입금일시 ${depositedAt}`, (p.note ?? "").trim().slice(0, 200)].filter(Boolean).join(", ");
     const [pay] = await tx
       .select()
       .from(payments)
@@ -122,9 +127,9 @@ export async function confirmDeposit(db: Db, p: { actor: Actor; applicationId: s
     if (!pay) throw new TransitionError("입금 확인할 계좌이체 결제가 없습니다.");
     const [hold] = await tx.select().from(slotOccupancies).where(and(eq(slotOccupancies.applicationId, app.id), eq(slotOccupancies.kind, "pending_payment"))).for("update");
     if (!hold) throw new TransitionError("입금 기한이 지나 일정이 풀렸습니다. 신청자에게 다시 신청하도록 안내하세요.");
-    await tx.update(payments).set({ status: "paid", paidAt: now, providerRaw: { manual: true, note, confirmedBy: p.actor.id } }).where(eq(payments.id, pay.id));
+    await tx.update(payments).set({ status: "paid", paidAt: now, providerRaw: { manual: true, depositorName: depositorName || null, depositedAt: depositedAt || null, note: note || null, confirmedBy: p.actor.id } }).where(eq(payments.id, pay.id));
     await tx.update(slotOccupancies).set({ kind: p.approve ? "confirmed" : "held", expiresAt: null }).where(eq(slotOccupancies.id, hold.id));
-    const submitted = await transition(tx, app, "submitted", { actorType: "admin", actorId: p.actor.id, reason: `입금 확인: ${note}`, patch: { paidAt: now }, ip: p.actor.ip });
+    const submitted = await transition(tx, app, "submitted", { actorType: "admin", actorId: p.actor.id, reason: note ? `입금 확인: ${note}` : "입금 확인", patch: { paidAt: now }, ip: p.actor.ip });
     if (p.approve) {
       await transition(tx, submitted, "confirmed", {
         actorType: "admin",

@@ -3,19 +3,26 @@ import { applicationStatusHistory, applications, attachments, organizations, pay
 import type { DbOrTx } from "@/server/db/types";
 import type { ApplicationStatus } from "./transition";
 
-export const statusTabs: { key: string; label: string; statuses: ApplicationStatus[] }[] = [
-  { key: "todo", label: "처리 필요", statuses: ["submitted", "reviewing"] },
-  { key: "revision", label: "보완요청", statuses: ["revision_requested"] },
-  { key: "pending", label: "입금·결제 대기", statuses: ["pending_payment"] },
-  { key: "confirmed", label: "예약확정", statuses: ["confirmed"] },
-  { key: "closed", label: "종료", statuses: ["rejected", "withdrawn", "payment_expired", "closed_revision_expired", "cancelled", "refunded", "completed"] },
+/**
+ * 신청 관리 상태 분류 (2026-10 기념관 요청: 입금 대기·예약 확정·반려·전체).
+ * 입금은 확인했지만 아직 승인하지 않았거나 보완 중인 신청은 '확인 필요'로 따로 모은다. 이 탭은 해당 건이 있을 때만 보인다.
+ */
+export const statusTabs: { key: string; label: string; statuses: ApplicationStatus[]; onlyWhenNonEmpty?: boolean }[] = [
+  { key: "pending", label: "입금 대기", statuses: ["pending_payment"] },
+  { key: "review", label: "확인 필요", statuses: ["submitted", "reviewing", "revision_requested"], onlyWhenNonEmpty: true },
+  { key: "confirmed", label: "예약 확정", statuses: ["confirmed", "cancel_requested", "completed"] },
+  { key: "rejected", label: "반려", statuses: ["rejected"] },
   { key: "all", label: "전체", statuses: [] },
 ];
+
+/** 예전 주소(?tab=todo 등)도 열리게 */
+const legacyTabs: Record<string, string> = { todo: "review", revision: "review", closed: "all" };
 
 const PAGE_SIZE = 30;
 
 export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string; q: string; page: number }) {
-  const tab = statusTabs.find((t) => t.key === params.tab) ?? statusTabs[0]!;
+  const key = legacyTabs[params.tab] ?? params.tab;
+  const tab = statusTabs.find((t) => t.key === key) ?? statusTabs[0]!;
   const conds: SQL[] = [];
   if (tab.statuses.length > 0) conds.push(inArray(applications.status, tab.statuses));
   const q = params.q.trim();
@@ -29,7 +36,7 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(where)
-    .orderBy(tab.key === "todo" ? asc(applications.paidAt) : desc(applications.createdAt))
+    .orderBy(tab.key === "review" ? asc(applications.paidAt) : tab.key === "pending" ? asc(applications.createdAt) : desc(applications.createdAt))
     .limit(PAGE_SIZE)
     .offset((Math.max(1, params.page) - 1) * PAGE_SIZE);
   const counts = await db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status);

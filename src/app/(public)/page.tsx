@@ -92,7 +92,8 @@ export default async function GuidePage() {
                 <>
                   <dt className="text-muted">야간</dt>
                   <dd>
-                    {s["operation.dayEnd"]} ~ {s["operation.nightEnd"]} (출입문 관리 담당자 지정 필요)
+                    {s["operation.dayEnd"]} ~ {s["operation.nightEnd"]}
+                    {s["operation.nightOnWeekends"] ? "" : " (평일만, 토·일요일은 야간 대관 불가)"} · 출입문 관리 담당자 지정 필요
                   </dd>
                 </>
               )}

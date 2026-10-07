@@ -41,10 +41,14 @@ export async function rejectAction(no: string, id: string, f: FormData): Promise
 export async function approveAction(no: string, id: string, f: FormData): Promise<void> {
   await run(no, "승인했습니다. 예약이 확정되었습니다.", (a) => approveApplication(db, { actor: actor(a), applicationId: id, note: s(f, "note") }));
 }
+/** datetime-local 값(2026-10-02T14:10)을 읽기 쉬운 형태(2026-10-02 14:10)로 */
+function depositedAtLabel(v: string): string {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? v.replace("T", " ") : "";
+}
 export async function confirmDepositAction(no: string, id: string, f: FormData): Promise<void> {
   const approve = f.get("approve") === "yes";
   await run(no, approve ? "입금을 확인하고 승인했습니다. 예약이 확정되었습니다." : "입금을 확인했습니다. 신청이 접수되었습니다. 검토 후 승인하세요.", (a) =>
-    confirmDeposit(db, { actor: actor(a), applicationId: id, note: s(f, "note"), approve }),
+    confirmDeposit(db, { actor: actor(a), applicationId: id, depositorName: s(f, "depositorName"), depositedAt: depositedAtLabel(s(f, "depositedAt")), approve }),
   );
 }
 export async function addNoteAction(no: string, id: string, f: FormData): Promise<void> {

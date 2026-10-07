@@ -10,7 +10,6 @@ export interface RevisionInitial {
   contactPhone: string;
   eventTitle: string;
   eventPurpose: string;
-  eventPublic: boolean;
   expectedHeadcount: number;
   nightManagerName: string;
   nightManagerPhone: string;
@@ -69,17 +68,6 @@ export function RevisionForm({ action, initial }: { action: Action; initial: Rev
           {e.eventPurpose && <span className="text-xs font-normal text-danger">{e.eventPurpose}</span>}
         </label>
         {field("expectedHeadcount", "예상 인원", { type: "number", min: 1 })}
-        <div className="flex flex-col gap-1 text-sm font-medium">
-          행사 공개 여부
-          <div className="flex gap-4 py-2 font-normal">
-            <label className="flex items-center gap-2">
-              <input type="radio" name="eventPublic" value="true" defaultChecked={initial.eventPublic} /> 공개
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="eventPublic" value="false" defaultChecked={!initial.eventPublic} /> 비공개
-            </label>
-          </div>
-        </div>
         {initial.night && (
           <>
             {field("nightManagerName", "야간 출입문 관리 담당자")}

@@ -1,9 +1,10 @@
 import { evaluateClosure, type ClosureRule } from "@/domain/calendar/closures";
 import { addDays } from "@/domain/calendar/closures";
-import { closingMinutes, fromMinutes, type OperatingHours } from "./time";
+import { closingMinutes, fromMinutes, hoursForDate, isWeekend, type OperatingHours } from "./time";
 
 /**
  * 신청 조건 자동 검증 ([요구] 10장 BR-01~08, AT-01~05).
+ * BR-05(정원 초과)는 막지 않는다(2026-10 기념관 결정). 정원은 안내로만 보여 준다.
  * 순수 함수: DB 조회 결과(겹치는 점유, 단체 신청 수 등)를 받아 위반 목록을 돌려준다.
  */
 export type ViolationCode =
@@ -19,7 +20,6 @@ export type ViolationCode =
   | "NIGHT_DISABLED"
   | "BR-02"
   | "BR-06"
-  | "BR-05"
   | "BR-08"
   | "BR-03"
   | "BR-04";
@@ -95,13 +95,19 @@ export function checkDate(date: string, ctx: Omit<RuleContext, "overlaps" | "org
 
 export function checkBooking(req: BookingRequest, ctx: RuleContext): Violation[] {
   const v: Violation[] = [];
-  const { space, hours } = ctx;
+  const { space } = ctx;
+  const hours = hoursForDate(ctx.hours, req.date);
   const dateViolation = checkDate(req.date, ctx);
   if (dateViolation) v.push(dateViolation);
 
   const closing = closingMinutes(hours);
   if (!hours.nightEnabled && req.endMinutes > hours.dayEnd && req.endMinutes <= hours.nightEnd && req.startMinutes >= hours.dayStart && req.startMinutes < req.endMinutes) {
-    v.push({ code: "NIGHT_DISABLED", field: "time", message: `지금은 야간 대관을 받지 않습니다. ${fromMinutes(hours.dayEnd)} 이전에 끝나도록 정해 주세요.` });
+    const weekendOnly = ctx.hours.nightEnabled && isWeekend(req.date);
+    v.push({
+      code: "NIGHT_DISABLED",
+      field: "time",
+      message: `${weekendOnly ? "토·일요일은" : "지금은"} 야간 대관을 받지 않습니다. ${fromMinutes(hours.dayEnd)}까지 끝나도록 정해 주세요.`,
+    });
   } else if (req.startMinutes < hours.dayStart || req.endMinutes > closing || req.startMinutes >= req.endMinutes) {
     v.push({ code: "HOURS", field: "time", message: `대관 시간은 ${fromMinutes(hours.dayStart)}~${fromMinutes(closing)} 사이에서 같은 날 안에 정해야 합니다.` });
   } else {
@@ -123,9 +129,6 @@ export function checkBooking(req: BookingRequest, ctx: RuleContext): Violation[]
   }
 
   if (req.headcount !== null) {
-    if (req.headcount > space.capacity) {
-      v.push({ code: "BR-05", field: "headcount", message: `${space.name} 정원은 ${space.capacity}명입니다.` });
-    }
     if (space.minHeadcount !== null && req.headcount < space.minHeadcount) {
       v.push({ code: "BR-08", field: "headcount", message: `${space.name}은(는) ${space.minHeadcount}명 이상일 때 신청할 수 있습니다.` });
     }
