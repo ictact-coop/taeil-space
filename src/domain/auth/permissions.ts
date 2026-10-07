@@ -9,6 +9,7 @@ export const permissionDefs = [
   { key: "refunds.manage", group: "신청", label: "환불 처리", description: "환불 목록, 계좌이체 환불 완료 기록, PG 환불 재시도", requires: ["applications.view"] },
   { key: "calendar.view", group: "일정", label: "대관 일정 조회", description: "대관 캘린더, 대시보드의 오늘·이번 주 일정" },
   { key: "schedule.manage", group: "일정", label: "휴관일·일정 관리", description: "휴관일, 일정 차단, 교육실 접수기간과 그 설정값", requires: ["settings.view"] },
+  { key: "stats.view", group: "통계", label: "통계 조회", description: "월별·주별 이용·접수 실적과 수입 (집계값만, 신청자 정보 없음), CSV 내려받기" },
   { key: "settings.view", group: "정책", label: "정책 설정 조회", description: "정책 설정 화면 보기 (수정 불가)" },
   { key: "settings.manage", group: "정책", label: "운영 정책 변경", description: "운영 기본·신청 규칙·결제·환불·알림·개인정보·안내 문구 설정값", requires: ["settings.view"] },
   { key: "spaces.manage", group: "정책", label: "공간 관리", description: "공간 정보·정원·사진·공개 여부", requires: ["settings.view"] },
