@@ -18,6 +18,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
           {hasPermission(admin, "applications.view") && <NavLink href="/admin/applications">신청 관리</NavLink>}
           {hasPermission(admin, "calendar.view") && <NavLink href="/admin/calendar">대관 캘린더</NavLink>}
           {hasPermission(admin, "refunds.manage") && <NavLink href="/admin/refunds">환불 처리</NavLink>}
+          {hasPermission(admin, "stats.view") && <NavLink href="/admin/stats">통계</NavLink>}
           {hasPermission(admin, "settings.view") && <NavLink href="/admin/settings">정책 설정</NavLink>}
           {hasPermission(admin, "accounts.manage") && <NavLink href="/admin/accounts">계정 관리</NavLink>}
           {admin.isSuper && <NavLink href="/admin/grades">등급 관리</NavLink>}
