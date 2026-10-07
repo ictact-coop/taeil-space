@@ -65,7 +65,6 @@ export async function submitRevisionAction(no: string, prev: RevisionState, form
       contactPhone: s("contactPhone"),
       eventTitle: s("eventTitle"),
       eventPurpose: s("eventPurpose"),
-      eventPublic: form.get("eventPublic") === "true",
       expectedHeadcount: s("expectedHeadcount"),
       nightManagerName: s("nightManagerName"),
       nightManagerPhone: s("nightManagerPhone"),

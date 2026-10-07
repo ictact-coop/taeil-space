@@ -3,7 +3,7 @@ import { isValidBusinessNoChecksum, normalizeRegNo, validateRegNo } from "@/doma
 import { calculatePrice } from "@/domain/pricing/calculate";
 import type { ClosureRule } from "@/domain/calendar/closures";
 import { checkBooking, checkDate, halfYearRange, type RuleContext } from "./rules";
-import { slotStarts, toMinutes } from "./time";
+import { hoursForDate, slotStarts, toMinutes } from "./time";
 
 describe("고유번호·사업자등록번호 (계획서 2.5)", () => {
   it("하이픈·공백을 빼고 10자리로 정규화", () => {
@@ -68,10 +68,16 @@ describe("요금 계산 ([요구] 16장)", () => {
 });
 
 describe("운영시간 칸", () => {
+  const h = { dayStart: 600, dayEnd: 1080, nightEnabled: true, nightEnd: 1260, nightOnWeekends: false };
   it("야간 포함 여부에 따라 마지막 칸이 달라진다", () => {
-    const h = { dayStart: 600, dayEnd: 1080, nightEnabled: true, nightEnd: 1260 };
     expect(slotStarts(h, 60).at(-1)).toBe(1200); // 20:00
     expect(slotStarts({ ...h, nightEnabled: false }, 60).at(-1)).toBe(1020); // 17:00
+  });
+  it("토·일요일 야간을 받지 않으면 그날은 주간까지만", () => {
+    expect(slotStarts(hoursForDate(h, "2026-11-14"), 60).at(-1)).toBe(1020); // 토
+    expect(slotStarts(hoursForDate(h, "2026-11-15"), 60).at(-1)).toBe(1020); // 일
+    expect(slotStarts(hoursForDate(h, "2026-11-13"), 60).at(-1)).toBe(1200); // 금
+    expect(slotStarts(hoursForDate({ ...h, nightOnWeekends: true }, "2026-11-14"), 60).at(-1)).toBe(1200);
   });
 });
 
@@ -84,7 +90,7 @@ describe("신청 규칙 (BR-01~08, AT-01~05)", () => {
     today: "2026-10-29",
     nowMinutes: 600,
     paidRentalStartDate: "2026-10-29",
-    hours: { dayStart: 600, dayEnd: 1080, nightEnabled: true, nightEnd: 1260 },
+    hours: { dayStart: 600, dayEnd: 1080, nightEnabled: true, nightEnd: 1260, nightOnWeekends: false },
     space: { id: "hall", name: "공연장", capacity: 60, minHeadcount: 20, leadDays: 14, slotMinutes: 60, minDurationMinutes: 120, isPublic: true },
     closureRules: [monday],
     bookingWindow: null,
@@ -102,9 +108,9 @@ describe("신청 규칙 (BR-01~08, AT-01~05)", () => {
     const r = checkBooking({ ...ok, date: "2026-11-16" }, base);
     expect(r[0]).toMatchObject({ code: "BR-01", message: "매주 월요일은 휴관일입니다." });
   });
-  it("AT-02 공연장 20명 미만·정원 초과를 막는다", () => {
+  it("AT-02 공연장 20명 미만은 막고, 정원 초과는 막지 않는다(2026-10 결정)", () => {
     expect(codes(checkBooking({ ...ok, headcount: 19 }, base))).toEqual(["BR-08"]);
-    expect(codes(checkBooking({ ...ok, headcount: 61 }, base))).toEqual(["BR-05"]);
+    expect(checkBooking({ ...ok, headcount: 61 }, base)).toEqual([]);
   });
   it("AT-03 이용일 14일 전 규칙", () => {
     expect(codes(checkBooking({ ...ok, date: "2026-11-11" }, base))).toEqual(["LEAD_TIME"]);
@@ -122,6 +128,15 @@ describe("신청 규칙 (BR-01~08, AT-01~05)", () => {
     expect(codes(checkBooking({ ...ok, startMinutes: 630, endMinutes: 810 }, base))).toContain("SLOT");
     expect(codes(checkBooking({ ...ok, endMinutes: 660 }, base))).toContain("MIN_DURATION");
     expect(codes(checkBooking({ ...ok, startMinutes: 960, endMinutes: 1200 }, { ...base, hours: { ...base.hours, nightEnabled: false } }))).toEqual(["NIGHT_DISABLED"]);
+  });
+  it("토·일요일 야간 불가 (평일은 가능)", () => {
+    const night = { ...ok, startMinutes: 960, endMinutes: 1200 };
+    expect(checkBooking(night, base)).toEqual([]); // 금
+    const sat = checkBooking({ ...night, date: "2026-11-14" }, base);
+    expect(sat).toHaveLength(1);
+    expect(sat[0]).toMatchObject({ code: "NIGHT_DISABLED", message: expect.stringContaining("토·일요일은") });
+    expect(checkBooking({ ...ok, date: "2026-11-15", startMinutes: 900, endMinutes: 1080 }, base)).toEqual([]); // 일 18:00까지는 가능
+    expect(checkBooking({ ...night, date: "2026-11-14" }, { ...base, hours: { ...base.hours, nightOnWeekends: true } })).toEqual([]);
   });
   it("BR-02 차단 시간, BR-06 다른 신청과 겹침", () => {
     expect(codes(checkBooking(ok, { ...base, overlaps: ["block"] }))).toEqual(["BR-02"]);

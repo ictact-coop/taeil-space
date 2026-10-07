@@ -14,15 +14,15 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   await requireAdmin("applications.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const { rows, tab, tabCounts, pageSize } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "todo", q: sp.q ?? "", page });
+  const { rows, tab, tabCounts, pageSize } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "pending", q: sp.q ?? "", page });
   const link = (params: Record<string, string>) => `/admin/applications?${new URLSearchParams({ tab, ...(sp.q ? { q: sp.q } : {}), ...params }).toString()}`;
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="신청 관리" description="결제가 끝난 신청을 심사하고 보완요청·반려·승인합니다. 반려하면 결제 금액이 자동으로 전액 환불됩니다." />
+      <PageHeader title="신청 관리" description="입금을 확인하고 승인(예약 확정)하거나 반려합니다. 반려하면 받은 금액을 환불합니다(계좌이체는 담당자가 이체 후 완료 처리)." />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="상태별 보기" className="flex flex-wrap gap-1">
-          {statusTabs.map((t) => (
+          {statusTabs.filter((t) => !t.onlyWhenNonEmpty || (tabCounts[t.key] ?? 0) > 0 || t.key === tab).map((t) => (
             <Link
               key={t.key}
               href={`/admin/applications?${new URLSearchParams({ tab: t.key, ...(sp.q ? { q: sp.q } : {}) }).toString()}`}

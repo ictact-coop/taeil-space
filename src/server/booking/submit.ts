@@ -115,8 +115,6 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
       else fieldErrors.regNo = r.message;
     }
   }
-  const minLen = s["application.minPurposeLength"];
-  if (input.eventPurpose.length < minLen) fieldErrors.eventPurpose = `행사 목적과 내용을 ${minLen}자 이상 적어 주세요.`;
   const night = input.endMinutes > ctx.hours.dayEnd;
   if (night) {
     if (!input.nightManagerName) fieldErrors.nightManagerName = "야간 대관은 출입문 관리 담당자를 입력해야 합니다.";
@@ -249,7 +247,6 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
           contactEmail: input.contactEmail,
           eventTitle: input.eventTitle,
           eventPurpose: input.eventPurpose,
-          eventPublic: input.eventPublic,
           expectedHeadcount: input.expectedHeadcount,
           startsAt: kstDateTime(input.date, input.startMinutes),
           endsAt: kstDateTime(input.date, input.endMinutes),

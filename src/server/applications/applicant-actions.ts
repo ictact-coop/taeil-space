@@ -68,8 +68,7 @@ export const revisionSchema = z.object({
     .transform((v) => v.replace(/[\s-]/g, ""))
     .pipe(z.string().regex(/^0\d{8,10}$/, "전화번호를 확인하세요.")),
   eventTitle: z.string().trim().min(1, "행사명을 입력하세요.").max(100),
-  eventPurpose: z.string().trim().max(3000),
-  eventPublic: z.boolean(),
+  eventPurpose: z.string().trim().min(1, "행사 목적과 내용을 입력하세요.").max(3000),
   expectedHeadcount: z.coerce.number().int().min(1, "예상 인원을 입력하세요.").max(10000),
   nightManagerName: z.string().trim().max(50),
   nightManagerPhone: z.string().trim().max(20),
@@ -88,9 +87,7 @@ export async function submitRevision(db: Db, p: { applicationId: string; raw: Re
       const [space] = await tx.select().from(spaces).where(eq(spaces.id, app.spaceId));
       const settings = await getSettings(tx);
       const errors: Record<string, string> = {};
-      if (space && input.expectedHeadcount > space.capacity) errors.expectedHeadcount = `정원은 ${space.capacity}명입니다.`;
       if (space?.minHeadcount && input.expectedHeadcount < space.minHeadcount) errors.expectedHeadcount = `${space.minHeadcount}명 이상이어야 합니다.`;
-      if (input.eventPurpose.length < settings["application.minPurposeLength"]) errors.eventPurpose = `행사 목적과 내용을 ${settings["application.minPurposeLength"]}자 이상 적어 주세요.`;
       const night = toMinutesOfDay(app.endsAt) > toMinutes(settings["operation.dayEnd"]);
       if (night && (!input.nightManagerName || !/^0\d{8,10}$/.test(input.nightManagerPhone.replace(/[\s-]/g, "")))) errors.nightManagerName = "야간 출입문 관리 담당자와 연락처를 입력하세요.";
       if (Object.keys(errors).length > 0) throw Object.assign(new TransitionError("입력값을 확인하세요."), { fieldErrors: errors });
@@ -102,7 +99,6 @@ export async function submitRevision(db: Db, p: { applicationId: string; raw: Re
           contactPhone: input.contactPhone,
           eventTitle: input.eventTitle,
           eventPurpose: input.eventPurpose,
-          eventPublic: input.eventPublic,
           expectedHeadcount: input.expectedHeadcount,
           nightManagerName: night ? input.nightManagerName : null,
           nightManagerPhone: night ? input.nightManagerPhone : null,

@@ -12,7 +12,7 @@ import { newUploadToken } from "@/server/booking/attachments";
 import { sendDepositReminders } from "@/server/booking/deposit-reminder";
 import { expirePendingApplications } from "@/server/booking/expire";
 import { submitApplication } from "@/server/booking/submit";
-import { applications, notificationLogs, payments, refunds, slotOccupancies, spaces } from "@/server/db/schema";
+import { applications, applicationStatusHistory as statusHistory, notificationLogs, payments, refunds, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
 import { memoryOutbox } from "@/server/notifications/mailer";
 import { flushNotifications } from "@/server/notifications/queue";
@@ -70,7 +70,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
       {
         spaceId: room.id, date, start: "10:00", end: "13:00", orgName: `단체${day}`, regType: "", regNo: "",
         contactName: "홍길동", contactPhone: "010-1234-5678", contactEmail: email, eventTitle: "토론회",
-        eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.", eventPublic: true,
+        eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.",
         expectedHeadcount: "10", nightManagerName: "", nightManagerPhone: "", discountRuleId: "", optionKeys: [],
         consents: ["privacy", "operationRules", "refundRules"], uploadToken: newUploadToken(),
       },
@@ -169,11 +169,12 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     const req = await appOf(s.app.id);
     expect(req).toMatchObject({ status: "revision_requested", revisionMessage: "행사계획서를 첨부해 주세요." });
     expect(req.revisionDeadline?.toISOString()).toBe("2026-11-01T01:00:00.000Z"); // 기본 3일
-    const bad = await submitRevision(db, { applicationId: s.app.id, raw: { contactName: "홍길동", contactPhone: "010-1234-5678", eventTitle: "토론회", eventPurpose: "짧음", eventPublic: false, expectedHeadcount: "99", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "" } });
-    expect(bad).toMatchObject({ ok: false, fieldErrors: { expectedHeadcount: expect.any(String) } });
+    const bad = await submitRevision(db, { applicationId: s.app.id, raw: { contactName: "홍길동", contactPhone: "010-1234-5678", eventTitle: "토론회", eventPurpose: "  ", expectedHeadcount: "0", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "" } });
+    // 정원 초과는 막지 않고(2026-10 결정), 빈 목적·0명은 막는다
+    expect(bad).toMatchObject({ ok: false, fieldErrors: { eventPurpose: expect.any(String), expectedHeadcount: expect.any(String) } });
     const ok = await submitRevision(db, {
       applicationId: s.app.id,
-      raw: { contactName: "김담당", contactPhone: "010-9999-8888", eventTitle: "시민 토론회", eventPurpose: "보완: 노동 인권을 주제로 한 시민 토론회입니다. 발제 2개와 자유토론으로 진행합니다.", eventPublic: false, expectedHeadcount: "12", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "첨부했습니다" },
+      raw: { contactName: "김담당", contactPhone: "010-9999-8888", eventTitle: "시민 토론회", eventPurpose: "보완: 노동 인권을 주제로 한 시민 토론회입니다. 발제 2개와 자유토론으로 진행합니다.", expectedHeadcount: "12", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "첨부했습니다" },
     });
     expect(ok).toEqual({ ok: true });
     expect(await appOf(s.app.id)).toMatchObject({ status: "reviewing", contactName: "김담당", expectedHeadcount: 12, totalAmount: 60000 });
@@ -213,9 +214,13 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "bankTransfer", "payment.bankAccountInfo": "○○은행 000-00" }, effectiveFrom: t0, reason: "계좌이체", now: t0 });
     const s = await submit("bank@example.org", new Date(t0.getTime() + 1000));
     expect(s.pay.method).toBe("bank_transfer");
-    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, note: "", now: t0 })).toMatchObject({ ok: false });
-    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, note: "홍길동 10/29 11:30 입금", now: t0 })).toEqual({ ok: true });
+    // 입금자명·입금일시는 선택: 넣으면 처리 이력과 결제 기록에 남는다
+    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, depositorName: " 홍길동 ", depositedAt: "2026-10-29 11:30", now: t0 })).toEqual({ ok: true });
     expect((await appOf(s.app.id)).status).toBe("submitted");
+    const [paid] = await db.select().from(payments).where(eq(payments.applicationId, s.app.id));
+    expect(paid?.providerRaw).toMatchObject({ manual: true, depositorName: "홍길동", depositedAt: "2026-10-29 11:30" });
+    const [hist] = await db.select().from(statusHistory).where(and(eq(statusHistory.applicationId, s.app.id), eq(statusHistory.toStatus, "submitted")));
+    expect(hist?.reason).toBe("입금 확인: 입금자 홍길동, 입금일시 2026-10-29 11:30");
     await rejectApplication(db, gateway, { actor: rental, applicationId: s.app.id, reason: "정원 초과 행사" });
     const [r] = await refundsOf(s.app.id);
     expect(r).toMatchObject({ status: "requested" }); // 자동 처리 불가 → 수동
@@ -248,7 +253,8 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     expect(reminder?.subject).toContain("입금 기한");
 
     // 입금 확인과 함께 승인 → 바로 예약확정
-    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, note: "전태일 10/29 15:00", approve: true, now: at })).toEqual({ ok: true });
+    // 입금자명·입금일시 없이도 확인할 수 있다
+    expect(await confirmDeposit(db, { actor: rental, applicationId: s.app.id, approve: true, now: at })).toEqual({ ok: true });
     const app = await appOf(s.app.id);
     expect(app.status).toBe("confirmed");
     const [occ] = await db.select().from(slotOccupancies).where(eq(slotOccupancies.applicationId, s.app.id));
@@ -258,7 +264,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     expect(after.some((l) => l.event === "submitted")).toBe(false);
     // 동아리 운영자처럼 심사 권한이 없으면 입금 확인 불가
     const club = (await createTestAdmin(db, "club")).actor;
-    await expect(confirmDeposit(db, { actor: club, applicationId: s.app.id, note: "x x", now: at })).rejects.toBeInstanceOf(PermissionError);
+    await expect(confirmDeposit(db, { actor: club, applicationId: s.app.id, now: at })).rejects.toBeInstanceOf(PermissionError);
     await saveSettingChanges(db, { actor: system, rawValues: { "payment.method": "pg" }, effectiveFrom: new Date(t1.getTime() + 2000), reason: "PG 복귀", now: new Date(t1.getTime() + 2000) });
   });
 
@@ -345,7 +351,17 @@ describe.skipIf(!hasTestDb)("관리자 조회", () => {
       ]);
       const detail = await getApplicationForAdmin(db, "R202611-00001");
       expect(detail?.history.map((h) => h.actorName)).toEqual([null, admin.name]);
-      expect((await listApplicationsForAdmin(db, { tab: "todo", q: "단체", page: 1 })).rows).toHaveLength(1);
+      expect((await listApplicationsForAdmin(db, { tab: "todo", q: "단체", page: 1 })).rows).toHaveLength(1); // 예전 주소 → 확인 필요
+      // 상태 분류: 입금 대기·확인 필요·예약 확정·반려·전체
+      const more = (no: string, status: (typeof applications.$inferInsert)["status"]) => ({
+        applicationNo: no, status, spaceId: space.id, orgName: "기타", contactName: "담당", contactPhone: "01000000000", contactEmail: "a@b.c",
+        eventTitle: "행사", eventPurpose: "목적", expectedHeadcount: 5, startsAt: new Date("2026-12-01T01:00:00Z"), endsAt: new Date("2026-12-01T02:00:00Z"),
+      });
+      await db.insert(applications).values([more("R-T-1", "pending_payment"), more("R-T-2", "confirmed"), more("R-T-3", "completed"), more("R-T-4", "rejected"), more("R-T-5", "withdrawn")]);
+      const list = await listApplicationsForAdmin(db, { tab: "", q: "", page: 1 });
+      expect(list.tab).toBe("pending"); // 기본은 입금 대기
+      expect(list.tabCounts).toEqual({ pending: 1, review: 1, confirmed: 2, rejected: 1, all: 6 });
+      expect((await listApplicationsForAdmin(db, { tab: "confirmed", q: "", page: 1 })).rows.map((r) => r.app.applicationNo).sort()).toEqual(["R-T-2", "R-T-3"]);
       expect((await getDashboard(db)).reviewing).toBe(1);
       expect((await getMonthSchedule(db, "2026-11", null)).apps).toHaveLength(1);
       expect(await listRefundsNeedingAction(db)).toEqual([]);

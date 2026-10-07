@@ -12,7 +12,6 @@ export interface FormProps {
   options: { key: string; name: string; label: string }[];
   discounts: { id: string; name: string; label: string; proofRequired: boolean; proofGuide: string; description: string }[];
   consents: { key: string; label: string; text: string }[];
-  minPurposeLength: number;
   regNoRequired: boolean;
   attachment: { extensions: string[]; maxMb: number; maxCount: number };
   uploadToken: string;
@@ -213,7 +212,7 @@ function Body({
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <Field label="행사 목적과 내용 *" name="eventPurpose" error={e.eventPurpose} hint={`심사에 쓰입니다. ${props.minPurposeLength}자 이상 구체적으로 적어 주세요.`}>
+            <Field label="행사 목적과 내용 *" name="eventPurpose" error={e.eventPurpose} hint="심사에 쓰입니다.">
               <textarea
                 id="f-eventPurpose"
                 name="eventPurpose"
@@ -229,7 +228,7 @@ function Body({
             label="예상 인원 *"
             name="expectedHeadcount"
             error={e.expectedHeadcount}
-            hint={`정원 ${props.space.capacity}명${props.space.minHeadcount ? ` · ${props.space.minHeadcount}명 이상` : ""}`}
+            hint={`정원 ${props.space.capacity}명(참고)${props.space.minHeadcount ? ` · ${props.space.minHeadcount}명 이상` : ""}`}
           >
             <input
               id="f-expectedHeadcount"
@@ -243,20 +242,6 @@ function Body({
               className="input"
             />
           </Field>
-          <div className="flex flex-col gap-1 text-sm font-medium">
-            행사 공개 여부
-            <div className="flex gap-4 py-2 font-normal">
-              {[
-                { value: "true", label: "공개 행사" },
-                { value: "false", label: "비공개(내부) 행사" },
-              ].map((o) => (
-                <label key={o.value} className="flex items-center gap-2">
-                  <input type="radio" name="eventPublic" value={o.value} defaultChecked={str(v, "eventPublic", "false") === o.value} />
-                  {o.label}
-                </label>
-              ))}
-            </div>
-          </div>
         </fieldset>
 
         {props.night && (

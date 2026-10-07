@@ -39,11 +39,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {canApps && (
             <>
-              <Stat label="신규 신청(결제 완료)" value={d.newApplications} href="/admin/applications?tab=todo" />
-              <Stat label="검토중" value={d.reviewing} href="/admin/applications?tab=todo" />
-              <Stat label="보완요청 중" value={d.revision} href="/admin/applications?tab=revision" />
+              <Stat label="신규 신청(결제 완료)" value={d.newApplications} href="/admin/applications?tab=review" />
+              <Stat label="검토중" value={d.reviewing} href="/admin/applications?tab=review" />
+              <Stat label="보완요청 중" value={d.revision} href="/admin/applications?tab=review" />
               <Stat label="입금·결제 대기" value={d.pendingPayment} href="/admin/applications?tab=pending" />
-              <Stat label={`심사 지연(${d.delayDays}일 이상)`} value={d.delayed} href="/admin/applications?tab=todo" tone="alert" />
+              <Stat label={`심사 지연(${d.delayDays}일 이상)`} value={d.delayed} href="/admin/applications?tab=review" tone="alert" />
             </>
           )}
           {canRefunds && (

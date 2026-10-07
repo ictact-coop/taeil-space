@@ -96,20 +96,27 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                     {canApps ? (
                       <Link
                         href={`/admin/applications/${a.applicationNo}`}
-                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
-                        className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
+                        title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)}–${formatKst(a.endsAt).slice(-5)} ${a.orgName} (${statusLabels[a.status]})`}
+                        className={`block rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
                       >
-                        {formatKst(a.startsAt).slice(-5)} {space ? "" : `${a.spaceName} `}
-                        {a.orgName}
+                        <span className="block whitespace-nowrap tabular-nums">
+                          {formatKst(a.startsAt).slice(-5)}–{formatKst(a.endsAt).slice(-5)}
+                        </span>
+                        <span className="block truncate">
+                          {space ? "" : `${a.spaceName} `}
+                          {a.orgName}
+                        </span>
                       </Link>
                     ) : (
                       // 신청 조회 권한이 없으면(예: 동아리 운영자) 일정만 보여 주고 단체명은 감춘다
                       <span
                         title={`${a.spaceName} ${formatKst(a.startsAt).slice(-5)}–${formatKst(a.endsAt).slice(-5)} ${a.status === "confirmed" ? "예약" : "신청 진행 중"}`}
-                        className={`block truncate rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
+                        className={`block rounded px-1 ${tone[a.status] ?? "bg-brick/10 text-brick"}`}
                       >
-                        {formatKst(a.startsAt).slice(-5)}–{formatKst(a.endsAt).slice(-5)} {space ? "" : a.spaceName}
-                        {space ? (a.status === "confirmed" ? "예약" : "신청 중") : ""}
+                        <span className="block whitespace-nowrap tabular-nums">
+                          {formatKst(a.startsAt).slice(-5)}–{formatKst(a.endsAt).slice(-5)}
+                        </span>
+                        <span className="block truncate">{space ? (a.status === "confirmed" ? "예약" : "신청 중") : a.spaceName}</span>
                       </span>
                     )}
                   </li>

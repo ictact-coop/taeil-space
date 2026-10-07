@@ -127,7 +127,6 @@ export default async function MyApplicationPage({
                 contactPhone: a.contactPhone,
                 eventTitle: a.eventTitle,
                 eventPurpose: a.eventPurpose,
-                eventPublic: a.eventPublic,
                 expectedHeadcount: a.expectedHeadcount,
                 nightManagerName: a.nightManagerName ?? "",
                 nightManagerPhone: a.nightManagerPhone ?? "",

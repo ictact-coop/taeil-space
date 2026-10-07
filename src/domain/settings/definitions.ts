@@ -63,6 +63,14 @@ export const settingDefinitions = {
     trueLabel: "받음",
     falseLabel: "받지 않음",
   }),
+  "operation.nightOnWeekends": boolean({
+    group: "operation",
+    label: "토·일요일 야간 대관",
+    description: "받지 않음이면 토·일요일은 주간 대관 종료 시각까지만 신청할 수 있습니다.",
+    defaultValue: false,
+    trueLabel: "받음",
+    falseLabel: "받지 않음",
+  }),
   "operation.nightEnd": time({
     group: "operation",
     label: "야간 대관 종료 시각",
@@ -183,15 +191,6 @@ export const settingDefinitions = {
       { value: "submitted", label: "결제 완료된 신청(심사중 포함)" },
       { value: "confirmed", label: "예약확정·이용완료 건만" },
     ],
-  }),
-  "application.minPurposeLength": integer({
-    group: "application",
-    label: "행사 목적·내용 최소 글자수",
-    refs: ["[요구] 15장"],
-    defaultValue: 30,
-    min: 0,
-    max: 2000,
-    unit: "자",
   }),
   "application.attachmentExtensions": list({
     group: "application",

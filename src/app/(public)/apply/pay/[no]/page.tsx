@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CopyButton } from "@/components/copy-button";
 import { Paragraphs } from "@/components/public/paragraphs";
 import { Steps } from "@/components/public/steps";
+import { extractAccountNumber } from "@/domain/payments/bank-account";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 import { formatKst } from "@/lib/time";
 import { getApplicantView } from "@/server/applicant/current";
@@ -33,6 +35,7 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
   const expiresAt = found.holdExpiresAt;
   const pending = app.status === "pending_payment" && expiresAt !== null && expiresAt > new Date();
   const bank = payment?.method === "bank_transfer";
+  const accountNo = extractAccountNumber(settings["payment.bankAccountInfo"]);
   const word = bank ? "입금" : "결제";
   const time = `${formatKst(app.startsAt).slice(0, 13)} ${formatKst(app.startsAt).slice(-5)}–${formatKst(app.endsAt).slice(-5)}`;
 
@@ -107,12 +110,23 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
           <div className="mt-6 rounded bg-cream p-4 text-sm">
             <p className="font-semibold text-navy">입금 계좌</p>
             {settings["payment.bankAccountInfo"].trim() ? (
-              <Paragraphs text={settings["payment.bankAccountInfo"]} className="mt-2" />
+              <>
+                <Paragraphs text={settings["payment.bankAccountInfo"]} className="mt-2" />
+                {accountNo && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-base font-semibold tracking-wide">{accountNo}</span>
+                    <CopyButton value={accountNo} label="계좌번호 복사" />
+                  </div>
+                )}
+              </>
             ) : (
               <p className="mt-2">입금 계좌는 기념관에서 따로 안내해 드립니다. 문의 02-318-0903~4</p>
             )}
-            <p className="mt-2 text-xs text-muted">
-              입금자명에 신청번호 <strong>{app.applicationNo}</strong>를 적어 주세요. 입금 후 따로 연락하지 않으셔도 담당자가 확인합니다.
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span>
+                입금자명에 신청번호 <strong>{app.applicationNo}</strong>를 적어 주세요. 입금 후 따로 연락하지 않으셔도 담당자가 확인합니다.
+              </span>
+              <CopyButton value={app.applicationNo} label="신청번호 복사" />
             </p>
           </div>
         )}

@@ -68,7 +68,6 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     contactEmail: "hong@example.org",
     eventTitle: "토론회",
     eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.",
-    eventPublic: true,
     expectedHeadcount: "12",
     nightManagerName: "",
     nightManagerPhone: "",
@@ -142,7 +141,7 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
   });
 
   it("공연장: 인원·규정 동의·야간 담당자를 확인한다 (AT-02, AT-05)", async () => {
-    const base = { spaceId: hall.id, date: "2026-11-14", start: "17:00", end: "20:00", expectedHeadcount: "30" };
+    const base = { spaceId: hall.id, date: "2026-11-20", start: "17:00", end: "20:00", expectedHeadcount: "30" };
     const r1 = await submitApplication(db, form(base), {}, now);
     expect(r1.ok).toBe(false);
     if (!r1.ok) {
@@ -164,6 +163,14 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
       now,
     );
     expect(r3).toMatchObject({ ok: true, total: 120000 + 20000 * 0 + 20000 }); // 3시간 기본 + 야간 2시간(18~20시) 20,000
+    // 토·일요일은 야간 대관 불가(기본값)
+    const sat = await submitApplication(
+      db,
+      form({ ...base, date: "2026-11-21", nightManagerName: "김담당", nightManagerPhone: "010-2222-3333", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
+      {},
+      now,
+    );
+    expect(sat).toMatchObject({ ok: false, violations: [{ code: "NIGHT_DISABLED" }] });
   });
 
   it("같은 단체번호로 같은 날 두 번째 신청은 막는다 (BR-03, AT-14)", async () => {

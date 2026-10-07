@@ -1,6 +1,6 @@
 import { addDays } from "@/domain/calendar/closures";
 import { checkBooking, checkDate, type Violation } from "@/domain/booking/rules";
-import { closingMinutes, fromMinutes, kstDateTime, slotStarts } from "@/domain/booking/time";
+import { closingMinutes, fromMinutes, hoursForDate, kstDateTime, slotStarts } from "@/domain/booking/time";
 import { calculatePrice, type PriceQuote } from "@/domain/pricing/calculate";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import type { DbOrTx } from "@/server/db/types";
@@ -40,7 +40,7 @@ type SlotState = "free" | "pending" | "booked" | "blocked" | "past";
 
 function slotStatesFor(date: string, ctx: BookingContext, busy: readonly BusyInterval[]): { start: number; end: number; state: SlotState }[] {
   const slot = ctx.space.slotMinutes;
-  return slotStarts(ctx.hours, slot).map((start) => {
+  return slotStarts(hoursForDate(ctx.hours, date), slot).map((start) => {
     const end = start + slot;
     if (date === ctx.today && start <= ctx.nowMinutes) return { start, end, state: "past" };
     const hit = overlaps(busy, kstDateTime(date, start), kstDateTime(date, end));
@@ -106,13 +106,14 @@ export async function getDayAvailability(db: DbOrTx, space: SpaceRow, date: stri
   const dayTo = kstDateTime(addDays(date, 1), 0);
   const busy = await loadBusyIntervals(db, space.id, dayFrom, dayTo, now);
   const toMin = (d: Date) => Math.max(0, Math.min(1440, Math.round((d.getTime() - dayFrom.getTime()) / 60000)));
+  const hours = hoursForDate(ctx.hours, date);
   return {
     date,
     dateViolation: checkDate(date, ruleCtx(ctx)),
-    dayStart: fromMinutes(ctx.hours.dayStart),
-    dayEnd: fromMinutes(ctx.hours.dayEnd),
-    closing: fromMinutes(closingMinutes(ctx.hours)),
-    nightEnabled: ctx.hours.nightEnabled,
+    dayStart: fromMinutes(hours.dayStart),
+    dayEnd: fromMinutes(hours.dayEnd),
+    closing: fromMinutes(closingMinutes(hours)),
+    nightEnabled: hours.nightEnabled,
     slotMinutes: space.slotMinutes,
     minDurationMinutes: space.minDurationMinutes,
     bufferBeforeMinutes: space.bufferBeforeMinutes,

@@ -14,6 +14,8 @@ export interface OperatingHours {
   dayEnd: number;
   nightEnabled: boolean;
   nightEnd: number;
+  /** 토·일요일에도 야간 대관을 받는지 */
+  nightOnWeekends: boolean;
 }
 
 export function hoursFromSettings(s: {
@@ -21,13 +23,26 @@ export function hoursFromSettings(s: {
   "operation.dayEnd": string;
   "operation.nightEnabled": boolean;
   "operation.nightEnd": string;
+  "operation.nightOnWeekends": boolean;
 }): OperatingHours {
   return {
     dayStart: toMinutes(s["operation.dayStart"]),
     dayEnd: toMinutes(s["operation.dayEnd"]),
     nightEnabled: s["operation.nightEnabled"],
     nightEnd: toMinutes(s["operation.nightEnd"]),
+    nightOnWeekends: s["operation.nightOnWeekends"],
   };
+}
+
+/** 토·일요일인지 (KST 날짜 YYYY-MM-DD) */
+export function isWeekend(date: string): boolean {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+/** 그 날짜에 적용할 운영 시간: 토·일요일 야간을 받지 않으면 그날은 야간이 없다. */
+export function hoursForDate(h: OperatingHours, date: string): OperatingHours {
+  return h.nightEnabled && !h.nightOnWeekends && isWeekend(date) ? { ...h, nightEnabled: false } : h;
 }
 
 /** 대관 가능한 마지막 시각 */
