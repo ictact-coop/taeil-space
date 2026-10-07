@@ -32,6 +32,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // 운영 이미지 빌드(Dockerfile)에서는 타입 검사를 건너뛴다. 같은 검사를 CI가 PR마다 하고(pnpm typecheck),
+  // 작은 서버에서 빌드할 때 메모리·시간을 크게 줄인다. 로컬·CI의 pnpm build는 그대로 검사한다.
+  typescript: { ignoreBuildErrors: process.env.SKIP_BUILD_TYPECHECK === "1" },
   serverExternalPackages: ["@node-rs/argon2"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
