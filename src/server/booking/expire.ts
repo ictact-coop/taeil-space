@@ -4,6 +4,8 @@ import { applications, applicationStatusHistory, payments, slotOccupancies } fro
 import { enqueueApplicationNotification } from "@/server/notifications/queue";
 import type { Db, DbOrTx } from "@/server/db/types";
 
+const NOT_IMPORTED = sql`not exists (select 1 from applications a where a.id = ${slotOccupancies.applicationId} and a.import_ref is not null)`;
+
 /** 결제대기 → 미결제취소 처리 (한 건) */
 async function expireOne(tx: DbOrTx, applicationId: string, now: Date): Promise<boolean> {
   const updated = await tx
@@ -40,7 +42,8 @@ export async function expirePendingApplications(db: Db, now: Date = new Date()):
   const due = await db
     .select({ applicationId: slotOccupancies.applicationId })
     .from(slotOccupancies)
-    .where(and(eq(slotOccupancies.kind, "pending_payment"), isNotNull(slotOccupancies.expiresAt), lte(slotOccupancies.expiresAt, now)))
+    // 다른 곳(노션)에서 가져온 신청은 자동 취소하지 않는다(담당자가 처리)
+    .where(and(eq(slotOccupancies.kind, "pending_payment"), isNotNull(slotOccupancies.expiresAt), lte(slotOccupancies.expiresAt, now), NOT_IMPORTED))
     .limit(500);
   let count = 0;
   for (const { applicationId } of due) {
@@ -66,6 +69,7 @@ export async function releaseExpiredOverlapping(tx: DbOrTx, spaceId: string, fro
         eq(slotOccupancies.spaceId, spaceId),
         eq(slotOccupancies.kind, "pending_payment"),
         lte(slotOccupancies.expiresAt, now),
+        NOT_IMPORTED,
         sql`${slotOccupancies.during} && tstzrange(${from.toISOString()}::timestamptz, ${to.toISOString()}::timestamptz, '[)')`,
       ),
     );

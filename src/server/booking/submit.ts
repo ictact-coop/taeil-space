@@ -54,7 +54,7 @@ function missingConsents(required: Record<string, string>, given: readonly strin
 }
 
 /** 신청번호: R + 연월 + 월별 일련번호 (R202610-00125) */
-async function nextApplicationNo(tx: DbOrTx, now: Date): Promise<string> {
+export async function nextApplicationNo(tx: DbOrTx, now: Date): Promise<string> {
   const month = kstDateOf(now).slice(0, 7).replace("-", "");
   const [row] = await tx
     .insert(applicationCounters)
