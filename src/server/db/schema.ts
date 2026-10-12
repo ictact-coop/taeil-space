@@ -393,6 +393,11 @@ export const applications = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedBy: uuid("decided_by").references(() => adminUsers.id),
     decisionReason: text("decision_reason"),
+    /**
+     * 다른 곳에서 가져온 신청의 원본 식별자(예: notion:<페이지 ID>). 다시 가져와도 중복되지 않게 한다.
+     * 가져온 입금 대기 신청은 자동 취소·입금 기한 알림을 하지 않는다(담당자가 직접 처리).
+     */
+    importRef: text("import_ref").unique(),
     ...timestamps,
   },
   (t) => [

@@ -85,6 +85,13 @@
       "when": 1791340173485,
       "tag": "0011_stats_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791789658642,
+      "tag": "0012_notion_import",
+      "breakpoints": true
     }
   ]
 }

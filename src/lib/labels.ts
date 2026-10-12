@@ -25,6 +25,7 @@ export const auditActionLabels: Record<string, string> = {
   "admin.password-reset-requested": "관리자 비밀번호 재설정 링크 발송",
   "admin.password-reset-link": "관리자 비밀번호 재설정(메일 링크)",
   "admin.email-changed": "관리자 이메일 변경(본인)",
+  "application.imported": "신청 가져오기(노션)",
   "setting.confirm": "설정 확정",
   "space.create": "공간 추가",
   "space.update": "공간 수정",

@@ -69,6 +69,11 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
           <Card>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <StatusBadge status={app.status} />
+              {app.importRef && (
+                <span className="badge bg-cream-dark text-muted" title="자동 취소·입금 기한 알림을 하지 않습니다. 입금을 확인하거나 반려로 처리하세요.">
+                  노션에서 가져옴
+                </span>
+              )}
               <span className="text-sm text-muted">
                 {space.name} · {formatKst(app.startsAt)}–{formatKst(app.endsAt).slice(-5)}
               </span>

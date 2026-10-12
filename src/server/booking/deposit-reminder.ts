@@ -23,6 +23,8 @@ export async function sendDepositReminders(db: Db, now: Date = new Date()): Prom
         eq(payments.method, "bank_transfer"),
         eq(payments.status, "ready"),
         sql`not exists (select 1 from notification_logs n where n.application_id = ${slotOccupancies.applicationId} and n.event = 'deposit_reminder')`,
+        // 다른 곳(노션)에서 가져온 신청에는 알림을 보내지 않는다
+        sql`not exists (select 1 from applications a where a.id = ${slotOccupancies.applicationId} and a.import_ref is not null)`,
       ),
     )
     .limit(200);
