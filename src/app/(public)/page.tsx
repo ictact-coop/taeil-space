@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { Paragraphs } from "@/components/public/paragraphs";
 import { RentalSteps } from "@/components/public/rental-steps";
 import { formatMinutes, formatWon } from "@/domain/pricing/fee-schedule";
@@ -24,17 +25,15 @@ export default async function GuidePage() {
       >
         {/* 좁은 화면: 글·버튼 아래에 그림(건물)이 보이도록 아래 여백을 둔다. 그림 위쪽 하늘색과 배경색이 같아 이음새가 없다 */}
         <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[290px] sm:px-6 md:min-h-[600px] md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 md:pt-16 md:pb-10">
-          <div className="max-w-xl self-start rounded-2xl bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
-            <p className="text-xs font-semibold tracking-[0.2em] text-brick">SPACE RENTAL · 2026</p>
-            <h1 className="mt-3 font-serif text-4xl leading-tight text-navy-deep sm:text-5xl">
-              모임의 뜻이
-              <br />
-              <span className="text-brick-dark">이어지는 공간</span>
-            </h1>
-            <p className="mt-4 text-ink">
-              전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 {word} 후 담당자 심사를 거쳐 확정됩니다.
-            </p>
-          </div>
+          {s["content.heroHtml"].trim() ? (
+            // 정책 설정의 안내 상자 HTML(허용 목록으로 거른 뒤 넣는다)
+            <div
+              className="max-w-xl self-start rounded-2xl bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8 [&_a]:underline"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(s["content.heroHtml"]) }}
+            />
+          ) : (
+            <div />
+          )}
           <div className="flex flex-col items-stretch gap-3 md:self-end">
             <Link
               href="/apply"

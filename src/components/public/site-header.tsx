@@ -18,7 +18,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-3">
           <Image src="/images/logo.png" alt="아름다운청년 전태일 · 전태일기념관" width={455} height={384} priority unoptimized className="h-14 w-auto sm:h-16" />
-          <span className="hidden border-l border-line pl-3 text-sm font-semibold text-navy sm:block">대관 안내</span>
+          <span className="hidden border-l border-line pl-3 text-sm font-semibold text-navy sm:block">전태일기념관 대관 신청 페이지</span>
         </Link>
         <nav aria-label="주 메뉴">
           <ul className="flex gap-1 text-sm font-semibold sm:gap-4">
