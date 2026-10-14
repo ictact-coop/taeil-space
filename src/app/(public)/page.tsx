@@ -24,7 +24,7 @@ export default async function GuidePage() {
         aria-label="전태일기념관 대관 안내"
       >
         {/* 좁은 화면: 글·버튼 아래에 그림(건물)이 보이도록 아래 여백을 둔다. 그림 위쪽 하늘색과 배경색이 같아 이음새가 없다 */}
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[290px] sm:px-6 md:min-h-[600px] md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 md:pt-16 md:pb-10">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[290px] sm:px-6 md:min-h-[600px] md:grid-cols-[minmax(0,1fr)_auto] md:gap-8 md:pt-16 md:pb-10">
           {s["content.heroHtml"].trim() ? (
             // 정책 설정의 안내 상자 HTML(허용 목록으로 거른 뒤 넣는다)
             <div
@@ -34,16 +34,25 @@ export default async function GuidePage() {
           ) : (
             <div />
           )}
-          <div className="flex flex-col items-stretch gap-3 md:self-end">
+          {/* 건물 위 하늘에 '대관 신청'(크게)과 '이용규정 보기'(작게, 두 줄로 같은 높이) */}
+          <div className="flex items-stretch gap-3 md:self-start md:pt-2">
             <Link
               href="/apply"
-              className="flex items-center justify-center gap-3 rounded-lg bg-brick px-8 py-6 text-2xl font-bold text-white shadow-lg transition hover:bg-brick-dark focus-visible:outline-offset-4 sm:text-3xl"
+              className="flex flex-1 items-center justify-center gap-3 rounded-lg bg-brick px-8 py-6 text-2xl font-bold text-white shadow-lg transition hover:bg-brick-dark focus-visible:outline-offset-4 sm:text-3xl md:flex-none"
             >
               대관 신청
-              <span aria-hidden>→</span>
+              <svg viewBox="0 0 24 24" className="size-7 sm:size-8" aria-hidden fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M3 10h18M8 3v4M16 3v4" />
+                <path d="m9 15.5 2 2 4-4" />
+              </svg>
             </Link>
-            <a href="#rules" className="btn self-center border border-navy/40 bg-white/80 px-4 py-2 text-sm text-navy hover:bg-white md:self-stretch">
-              이용규정 보기
+            <a
+              href="#rules"
+              className="flex shrink-0 flex-col items-center justify-center rounded-lg border border-navy/30 bg-white/85 px-4 text-center text-sm leading-snug font-semibold text-navy shadow-sm transition hover:bg-white"
+            >
+              <span>이용규정</span>
+              <span>보기</span>
             </a>
           </div>
         </div>
