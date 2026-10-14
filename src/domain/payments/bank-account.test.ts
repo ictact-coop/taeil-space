@@ -12,4 +12,8 @@ describe("입금 계좌 안내에서 계좌번호 찾기", () => {
     expect(extractAccountNumber("기념관에서 따로 안내합니다. 문의 02-318-0903")).toBeNull();
     expect(extractAccountNumber("")).toBeNull();
   });
+  it("휴대전화 번호는 다른 후보가 없을 때만", () => {
+    expect(extractAccountNumber("담당 010-1234-5678\n농협 301-1234-5678-91")).toBe("301-1234-5678-91");
+    expect(extractAccountNumber("카카오뱅크 010-1234-5678 (예금주 전태일재단)")).toBe("010-1234-5678");
+  });
 });
