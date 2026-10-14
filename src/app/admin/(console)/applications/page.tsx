@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/ui";
+import { Notice, PageHeader } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 import { formatKst } from "@/lib/time";
@@ -10,7 +10,7 @@ import { db } from "@/server/db/client";
 
 export const metadata: Metadata = { title: "신청 관리" };
 
-export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string }> }) {
+export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; done?: string }> }) {
   await requireAdmin("applications.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -20,6 +20,11 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="신청 관리" description="입금을 확인하고 승인(예약 확정)하거나 반려합니다. 반려하면 받은 금액을 환불합니다(계좌이체는 담당자가 이체 후 완료 처리)." />
+      {sp.done && (
+        <div className="mb-4">
+          <Notice kind="success">{sp.done}</Notice>
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="상태별 보기" className="flex flex-wrap gap-1">
           {statusTabs.filter((t) => !t.onlyWhenNonEmpty || (tabCounts[t.key] ?? 0) > 0 || t.key === tab).map((t) => (

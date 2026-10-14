@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { hasPermission } from "@/domain/auth/permissions";
 import { withNotice } from "@/lib/url";
 import type { MutationResult } from "@/server/actor";
+import { cancelConfirmedApplication, deleteApplication, setCompleted } from "@/server/applications/admin-manage";
 import { addNote, approveApplication, confirmDeposit, rejectApplication, requestRevision, startReview } from "@/server/applications/review";
 import { requireAdmin, type CurrentAdmin } from "@/server/auth/current";
 import { PermissionError } from "@/server/auth/permissions";
@@ -65,4 +66,35 @@ export async function retryRefundAction(no: string, refundId: string): Promise<v
     if (!hasPermission(a, "refunds.manage")) throw new PermissionError();
     return retryRefund(db, getGateway(), { actor: actor(a), refundId });
   });
+}
+
+export async function cancelConfirmedAction(no: string, id: string, f: FormData): Promise<void> {
+  const percent = Number(s(f, "refundPercent"));
+  await run(no, "예약을 취소하고 일정을 다시 열었습니다.", async (a) => {
+    const r = await cancelConfirmedApplication(db, getGateway(), {
+      actor: actor(a),
+      applicationId: id,
+      reason: s(f, "reason"),
+      refundPercent: Number.isFinite(percent) ? Math.round(percent) : -1,
+      basis: s(f, "basis") === "venue_fault" ? "venue_fault" : "cancelled",
+      notify: f.get("notify") === "yes",
+    });
+    return r.ok ? { ok: true } : r;
+  });
+}
+export async function setCompletedAction(no: string, id: string, completed: boolean): Promise<void> {
+  await run(no, completed ? "이용완료로 표시했습니다." : "예약확정으로 되돌렸습니다.", (a) => setCompleted(db, { actor: actor(a), applicationId: id, completed }));
+}
+export async function deleteApplicationAction(no: string, id: string, f: FormData): Promise<void> {
+  const admin = await requireAdmin("applications.view");
+  let result: MutationResult;
+  try {
+    result = await deleteApplication(db, { actor: admin, applicationId: id, confirmNo: s(f, "confirmNo"), reason: s(f, "reason") });
+  } catch (e) {
+    if (!(e instanceof PermissionError)) throw e;
+    result = { ok: false, formError: e.message };
+  }
+  revalidatePath("/admin/applications");
+  if (result.ok) redirect(withNotice("/admin/applications", { done: `신청 ${no}을(를) 삭제했습니다.` }));
+  redirect(withNotice(`/admin/applications/${no}`, { error: result.formError ?? "삭제하지 못했습니다." }));
 }

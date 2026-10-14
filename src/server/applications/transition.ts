@@ -13,6 +13,7 @@ const allowed: Partial<Record<ApplicationStatus, readonly ApplicationStatus[]>> 
   reviewing: ["revision_requested", "rejected", "confirmed", "withdrawn"],
   revision_requested: ["reviewing", "rejected", "withdrawn", "closed_revision_expired"],
   confirmed: ["cancel_requested", "cancelled", "completed"],
+  completed: ["confirmed"],
   cancel_requested: ["cancelled", "confirmed"],
 };
 
