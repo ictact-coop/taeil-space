@@ -69,6 +69,7 @@ export default async function EditSpacePage({ params }: { params: Promise<{ id: 
           description: space.description,
           equipment: space.equipment.join(", "),
           notice: space.notice,
+          approvalNotice: space.approvalNotice,
           leadDays: space.leadDays === null ? "" : String(space.leadDays),
           slotMinutes: String(space.slotMinutes),
           minDurationMinutes: String(space.minDurationMinutes),

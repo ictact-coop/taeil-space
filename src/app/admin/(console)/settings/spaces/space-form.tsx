@@ -12,6 +12,7 @@ export interface SpaceFormInitial {
   description: string;
   equipment: string;
   notice: string;
+  approvalNotice: string;
   leadDays: string;
   slotMinutes: string;
   minDurationMinutes: string;
@@ -95,6 +96,21 @@ function Body({
         <label className="flex flex-col gap-1 text-sm font-medium">
           유의사항
           <textarea name="notice" rows={2} defaultValue={str(v, "notice", initial.notice)} disabled={!editable} className="input" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium sm:col-span-2">
+          승인 안내 문구
+          <textarea
+            name="approvalNotice"
+            rows={10}
+            defaultValue={str(v, "approvalNotice", initial.approvalNotice)}
+            disabled={!editable}
+            className="input font-mono text-xs"
+            aria-describedby="approvalNotice-help"
+          />
+          <span id="approvalNotice-help" className="text-xs font-normal text-muted">
+            승인하면 신청자에게 메일로 보내고 나의 대관에도 보여 줍니다. 첫 줄은 메일 제목이 됩니다. {"{일자}"} {"{공간}"} {"{신청번호}"} {"{단체명}"} {"{담당자}"}는 신청 내용으로 바뀝니다. 비우면 기본 승인 메일을 보냅니다.
+          </span>
+          <FieldError id="err-approvalNotice" message={e.approvalNotice} />
         </label>
       </fieldset>
 

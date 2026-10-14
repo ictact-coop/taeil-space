@@ -27,6 +27,7 @@ export const spaceInputSchema = z
       .transform((s) => s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean))
       .pipe(z.array(z.string().max(50)).max(30, "장비는 30개까지 입력할 수 있습니다.")),
     notice: z.string().trim().max(1000),
+    approvalNotice: z.string().trim().max(3000, "승인 안내 문구는 3000자까지 입력할 수 있습니다.").default(""),
     /** 비우면 교육실처럼 관리자가 공개한 접수기간 안에서만 신청받는다 */
     leadDays: optionalInt("신청기한", 0, 365),
     slotMinutes: z.coerce
@@ -63,6 +64,7 @@ export function spaceInputFromForm(form: FormData): Record<string, unknown> {
     description: s("description"),
     equipment: s("equipment"),
     notice: s("notice"),
+    approvalNotice: s("approvalNotice").replace(/\r\n/g, "\n"),
     leadDays: s("leadDays"),
     slotMinutes: s("slotMinutes"),
     minDurationMinutes: s("minDurationMinutes"),

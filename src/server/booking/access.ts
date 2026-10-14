@@ -18,7 +18,7 @@ export async function getApplicationForApplicant(
     ...(email ? [eq(applications.contactEmail, email)] : []),
   ];
   const [row] = await db
-    .select({ application: applications, spaceName: spaces.name, spaceCapacity: spaces.capacity, spaceMinHeadcount: spaces.minHeadcount })
+    .select({ application: applications, spaceName: spaces.name, spaceCapacity: spaces.capacity, spaceMinHeadcount: spaces.minHeadcount, spaceApprovalNotice: spaces.approvalNotice })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(and(eq(applications.applicationNo, applicationNo), or(...access)));

@@ -28,6 +28,10 @@ import {
   setCompletedAction,
   startReviewAction,
 } from "./actions";
+import { TemplateTextarea } from "./template-textarea";
+import { getSettings } from "@/server/settings/service";
+import { parseMessageTemplates } from "@/domain/messages/template";
+import { templateVars } from "@/server/notifications/queue";
 
 export const metadata: Metadata = { title: "신청 상세" };
 
@@ -61,6 +65,8 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
   const policy = app.policySnapshot as { discount?: { name: string } | null } | null;
   const reviewable = ["submitted", "reviewing", "revision_requested"].includes(app.status);
   const pendingBank = app.status === "pending_payment" && data.payments.some((p) => p.method === "bank_transfer" && p.status === "ready");
+  const messageTemplates = canReview ? parseMessageTemplates((await getSettings(db))["content.reviewMessageTemplates"]) : [];
+  const vars = templateVars(app, space.name);
   const b = (fn: (...a: never[]) => unknown, ...args: unknown[]) => (fn as (...a: unknown[]) => unknown).bind(null, ...args) as (f: FormData) => Promise<void>;
 
   return (
@@ -310,10 +316,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 )}
                 {(app.status === "submitted" || app.status === "reviewing") && (
                   <form action={b(requestRevisionAction, app.applicationNo, app.id)} className="flex flex-col gap-2 border-t border-line pt-3">
-                    <label className="text-sm font-medium">
-                      보완 요청 내용
-                      <textarea name="message" required rows={3} className="input mt-1" placeholder="신청자에게 전달됩니다." />
-                    </label>
+                    <TemplateTextarea name="message" label="보완 요청 내용" templates={messageTemplates} vars={vars} rows={3} />
                     <button type="submit" className="btn-secondary">
                       보완 요청
                     </button>
@@ -321,10 +324,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 )}
                 {reviewable && (
                   <form action={b(rejectAction, app.applicationNo, app.id)} className="flex flex-col gap-2 border-t border-line pt-3">
-                    <label className="text-sm font-medium">
-                      반려 사유
-                      <textarea name="reason" required rows={2} className="input mt-1" placeholder="신청자에게 전달됩니다." />
-                    </label>
+                    <TemplateTextarea name="reason" label="반려 사유" templates={messageTemplates} vars={vars} rows={4} />
                     <button type="submit" className="btn border border-danger text-danger hover:bg-danger hover:text-white">
                       반려 (전액 환불)
                     </button>

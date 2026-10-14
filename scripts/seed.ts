@@ -5,6 +5,7 @@
  */
 import { and, eq, isNull } from "drizzle-orm";
 import { createDb } from "../src/server/db/connect";
+import { DEFAULT_APPROVAL_NOTICES } from "../src/domain/spaces/approval-notices";
 import { closureRules, spaces } from "../src/server/db/schema";
 
 const url = process.env.DATABASE_URL;
@@ -50,7 +51,7 @@ const seedSpaces: (typeof spaces.$inferInsert)[] = [
 
 const { db, pool } = createDb(url);
 try {
-  const inserted = await db.insert(spaces).values(seedSpaces).onConflictDoNothing({ target: spaces.code }).returning();
+  const inserted = await db.insert(spaces).values(seedSpaces.map((sp) => ({ ...sp, approvalNotice: DEFAULT_APPROVAL_NOTICES[sp.code] ?? "" }))).onConflictDoNothing({ target: spaces.code }).returning();
   console.log(`공간 ${inserted.length}개 추가 (이미 있던 공간은 건너뜀)`);
 
   const [monday] = await db
