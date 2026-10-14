@@ -230,6 +230,7 @@ C="sudo docker compose -f /srv/taeil/deploy/docker-compose.prod.yml --env-file /
 $C run --rm --no-deps web pnpm db:seed                                           # 공간·기본 휴관일 (처음 한 번)
 $C run --rm --no-deps web pnpm admin:create --login admin --name "담당자 이름" --grade super --email <담당자 이메일>
 $C run --rm --no-deps web pnpm mail:test --to 담당자@taeil.org                     # 시험 메일
+$C run --rm web pnpm mail:test --to 담당자@taeil.org --space hall               # 공간 승인 안내 메일 모양 그대로(예시 내용)
 $C run --rm --no-deps web pnpm preflight --smtp                                  # 점검
 sudo /srv/taeil/deploy/backup.sh                                                 # 백업 한 번 → S3 버킷 daily/에 파일 확인
 ```
