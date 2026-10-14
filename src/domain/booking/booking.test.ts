@@ -40,6 +40,10 @@ describe("요금 계산 ([요구] 16장)", () => {
       ["night", 15000],
     ]);
     expect(q.total).toBe(115000);
+    // 야간 요금이 0원이면 야간 항목을 만들지 않는다(이용자에게 드러내지 않음)
+    const free = calculatePrice({ fee: { ...fee, nightFeePerHour: 0 }, startMinutes: toMinutes("15:00"), endMinutes: toMinutes("19:30"), dayEndMinutes: dayEnd });
+    expect(free.items.map((i) => i.kind)).toEqual(["base", "extra"]);
+    expect(free.total).toBe(100000);
   });
 
   it("옵션과 감면", () => {

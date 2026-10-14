@@ -49,8 +49,10 @@ export function calculatePrice(params: {
   }
 
   const nightMinutes = Math.max(0, endMinutes - Math.max(startMinutes, dayEndMinutes));
-  if (nightMinutes > 0) {
-    items.push({ kind: "night", label: `야간(${nightMinutes}분)`, amount: Math.round((fee.nightFeePerHour * nightMinutes) / 60) });
+  const nightAmount = Math.round((fee.nightFeePerHour * nightMinutes) / 60);
+  // 야간 요금이 0원이면 항목을 만들지 않는다(이용자 화면·메일에 야간 요금을 드러내지 않음, 2026-10 결정)
+  if (nightMinutes > 0 && nightAmount > 0) {
+    items.push({ kind: "night", label: `야간(${nightMinutes}분)`, amount: nightAmount });
   }
 
   const selected = new Set(params.selectedOptionKeys ?? []);

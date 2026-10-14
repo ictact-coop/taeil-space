@@ -108,14 +108,13 @@ export default async function GuidePage() {
             공간과 요금
           </h2>
           <div className="mt-5 overflow-x-auto rounded-lg border border-line bg-white">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[520px] text-left text-sm">
               <thead className="bg-cream text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-2">공간</th>
                   <th scope="col" className="px-4 py-2">정원</th>
                   <th scope="col" className="px-4 py-2">기본 대관료</th>
                   <th scope="col" className="px-4 py-2">추가 요금</th>
-                  <th scope="col" className="px-4 py-2">야간 요금</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -139,10 +138,9 @@ export default async function GuidePage() {
                           <td className="px-4 py-2">
                             {formatMinutes(f.extraUnitMinutes)}당 {formatWon(f.extraFee)}
                           </td>
-                          <td className="px-4 py-2">시간당 {formatWon(f.nightFeePerHour)}</td>
                         </>
                       ) : (
-                        <td colSpan={3} className="px-4 py-2 text-muted">
+                        <td colSpan={2} className="px-4 py-2 text-muted">
                           요금 확정 후 안내
                         </td>
                       )}
