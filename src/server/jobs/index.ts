@@ -10,6 +10,7 @@ import { flushNotifications } from "@/server/notifications/queue";
 import { getGateway } from "@/server/payments/gateway";
 import { processPendingRefunds } from "@/server/payments/refunds";
 import { reconcilePayments } from "@/server/payments/service";
+import { repricePendingApplications } from "@/server/pricing/reprice-pending";
 import { purgeRateLimits } from "@/server/security/rate-limit";
 
 /**
@@ -18,6 +19,7 @@ import { purgeRateLimits } from "@/server/security/rate-limit";
  */
 export const jobs = {
   "expire-pending-payments": { cron: "* * * * *", run: (db: Db) => expirePendingApplications(db) },
+  "reprice-pending": { cron: "* * * * *", run: (db: Db) => repricePendingApplications(db) },
   "send-notifications": { cron: "* * * * *", run: (db: Db) => flushNotifications(db) },
   "reconcile-payments": {
     cron: "*/5 * * * *",

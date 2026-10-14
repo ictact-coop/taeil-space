@@ -52,7 +52,7 @@ function PhoneLoginForm() {
       <button type="submit" className="btn-primary" disabled={pending}>
         신청 내역 보기
       </button>
-      <p className="text-xs text-muted">비밀번호가 기억나지 않으면 이메일 확인 코드로 들어오거나 기념관(02-318-0903)으로 문의해 주세요.</p>
+      <p className="text-xs text-muted">비밀번호가 기억나지 않으면 위의 &apos;이메일 확인 코드&apos;로 들어온 뒤 아래쪽 &apos;비밀번호 변경&apos;에서 다시 정하세요. 이메일을 받을 수 없으면 기념관(02-318-0903)으로 문의해 주세요.</p>
     </form>
   );
 }

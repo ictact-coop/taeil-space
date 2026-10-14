@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { withNotice } from "@/lib/url";
-import { endApplicantSession, loginWithPhone, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
-import { getApplicantView } from "@/server/applicant/current";
+import { changeApplicantPassword, endApplicantSession, loginWithPhone, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
+import { getApplicantView, getCurrentApplicant } from "@/server/applicant/current";
+import { headers } from "next/headers";
+import { clientIpFrom } from "@/server/security/client-ip";
 import { submitRevision, withdrawApplication } from "@/server/applications/applicant-actions";
 import { clearApplicantSessionCookie, getApplicantSessionCookie, setApplicantSessionCookie } from "@/server/booking/applicant-cookie";
 import { db } from "@/server/db/client";
@@ -46,6 +48,28 @@ export async function phoneLoginAction(_prev: PhoneLoginState, form: FormData): 
   if (!r.ok) return { phone, error: r.error };
   await setApplicantSessionCookie(r.token, r.expiresAt);
   redirect("/my");
+}
+
+export interface PasswordState {
+  version: number;
+  error?: string;
+  done?: string;
+}
+
+export async function changePasswordAction(prev: PasswordState, form: FormData): Promise<PasswordState> {
+  const version = prev.version + 1;
+  const me = await getCurrentApplicant();
+  if (!me) return { version, error: "다시 로그인해 주세요." };
+  if (!(await throttle("applicantLogin"))) return { version, error: TOO_MANY_REQUESTS };
+  const r = await changeApplicantPassword(
+    db,
+    me,
+    String(form.get("password") ?? ""),
+    String(form.get("passwordConfirm") ?? ""),
+    clientIpFrom(await headers()),
+  );
+  if (!r.ok) return { version, error: r.error };
+  return { version, done: `비밀번호를 바꿨습니다(신청 ${r.count}건). 다음부터 새 비밀번호로 확인하세요.` };
 }
 
 export async function logoutAction(): Promise<void> {
