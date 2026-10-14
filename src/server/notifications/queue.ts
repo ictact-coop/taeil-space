@@ -71,6 +71,7 @@ export async function enqueueApplicationNotification(
       ((app.policySnapshot as { settings?: { values?: Record<string, unknown> } } | null)?.settings?.values?.["payment.bankAccountInfo"] as string | undefined) ||
       null,
     depositDeadline: hold?.expiresAt ? `${formatKst(hold.expiresAt)}까지` : null,
+    depositorGuide: fillTemplate(settings["payment.depositorNameGuide"], templateVars(app, row.spaceName)),
     approvalNotice: event === "approved" && row.approvalNotice.trim() ? fillTemplate(row.approvalNotice, templateVars(app, row.spaceName)) : null,
     ...extra,
   };
@@ -86,7 +87,17 @@ export async function enqueueApplicationNotification(
     );
   }
   if (channel === "both" || channel === "lms") {
-    rows.push({ applicationId, event, channel: "lms", recipient: app.contactPhone, subject: msg.subject, body: msg.body, status: "skipped", error: "문자(LMS) 발송은 단계 5에서 연결합니다." });
+    const smsOk = Boolean((app.consents as Record<string, string>).smsReceive);
+    rows.push({
+      applicationId,
+      event,
+      channel: "lms",
+      recipient: app.contactPhone,
+      subject: msg.subject,
+      body: msg.body,
+      status: "skipped",
+      error: smsOk ? "문자(LMS) 발송은 단계 5에서 연결합니다." : "신청자가 문자 수신에 동의하지 않았습니다.",
+    });
   }
   const staff = staffMessage(event, ctx);
   if (staff) {

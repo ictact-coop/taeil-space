@@ -11,6 +11,8 @@ export interface FormProps {
   options: { key: string; name: string; label: string }[];
   discounts: { id: string; name: string; label: string; proofRequired: boolean; proofGuide: string; description: string }[];
   consents: { key: string; label: string; text: string }[];
+  /** 선택 동의(문자 수신 등) */
+  optionalConsents: { key: string; label: string; text: string }[];
   regNoRequired: boolean;
   attachment: { extensions: string[]; maxMb: number; maxCount: number };
   uploadToken: string;
@@ -316,7 +318,7 @@ function Body({
         </fieldset>
 
         <fieldset className="flex flex-col gap-3 rounded-lg border border-line bg-white p-5">
-          <legend className="px-1 font-semibold text-navy">규정 동의 (항목별 필수)</legend>
+          <legend className="px-1 font-semibold text-navy">동의 (선택 표시가 없는 항목은 필수)</legend>
           {e.consents && <p className="text-xs text-danger">{e.consents}</p>}
           {props.consents.map((c) => (
             <div key={c.key} className="rounded border border-line">
@@ -328,6 +330,20 @@ function Body({
                 <summary className="cursor-pointer text-navy">전문 보기</summary>
                 <p className="mt-2 whitespace-pre-line text-muted">{c.text}</p>
               </details>
+            </div>
+          ))}
+          {props.optionalConsents.map((c) => (
+            <div key={c.key} className="rounded border border-dashed border-line">
+              <label className="flex items-center gap-3 px-3 py-2 text-sm font-medium">
+                <input type="checkbox" name="consents" value={c.key} defaultChecked={consents.includes(c.key)} className="size-4" />
+                {c.label}에 동의합니다. <span className="text-xs font-normal text-muted">(선택)</span>
+              </label>
+              {c.text && (
+                <details className="border-t border-line px-3 py-2 text-xs">
+                  <summary className="cursor-pointer text-navy">자세히 보기</summary>
+                  <p className="mt-2 whitespace-pre-line text-muted">{c.text}</p>
+                </details>
+              )}
             </div>
           ))}
         </fieldset>

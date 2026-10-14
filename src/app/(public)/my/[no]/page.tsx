@@ -90,7 +90,10 @@ export default async function MyApplicationPage({
           {a.status === "pending_payment" && bank && view.holdExpiresAt && (
             <>
               <dt className="text-muted">입금 기한</dt>
-              <dd>{formatKst(view.holdExpiresAt)}까지 · 입금자명에 신청번호를 적어 주세요</dd>
+              <dd>
+                {formatKst(view.holdExpiresAt)}까지
+                <span className="block text-xs text-muted">{fillTemplate(settings["payment.depositorNameGuide"], templateVars(a, spaceName))}</span>
+              </dd>
             </>
           )}
           {a.decisionReason && a.status === "rejected" && (

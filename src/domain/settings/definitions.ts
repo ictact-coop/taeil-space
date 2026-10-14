@@ -272,6 +272,14 @@ export const settingDefinitions = {
     multiline: true,
     maxLength: 300,
   }),
+  "payment.depositorNameGuide": text({
+    group: "payment",
+    label: "입금자명 안내 문구",
+    description: "계좌이체 입금 화면·입금 안내 메일·나의 대관에 보여줍니다. {신청번호} {담당자} {단체명}은 신청 내용으로 바뀝니다.",
+    defaultValue: "입금자명에 신청하신 분 이름을 적어주세요. (입금자명과 신청하신 분 이름이 다르면 확인이 어렵습니다.)",
+    multiline: true,
+    maxLength: 300,
+  }),
   "payment.withdrawRefundPercent": percent({
     requiredBeforeOpen: true,
     group: "payment",
@@ -414,6 +422,14 @@ export const settingDefinitions = {
     ].join("\n"),
     multiline: true,
     maxLength: 10000,
+  }),
+  "content.smsConsent": text({
+    group: "content",
+    label: "문자 수신 동의 안내",
+    description: "신청서의 '문자(SMS) 수신 동의(선택)' 항목을 펼치면 보이는 설명입니다.",
+    defaultValue: "대관 신청 접수, 입금 안내, 심사 결과, 이용 안내를 신청서에 적은 휴대전화로 문자(SMS·LMS)로 보내 드립니다.\n동의하지 않아도 신청할 수 있으며, 안내는 이메일로 받습니다.",
+    multiline: true,
+    maxLength: 2000,
   }),
   "content.privacyPolicy": text({
     group: "content",

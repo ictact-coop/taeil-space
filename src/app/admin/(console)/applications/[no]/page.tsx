@@ -99,6 +99,9 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
               </Row>
               <Row label="담당자">
                 {app.contactName} · {app.contactPhone} · {app.contactEmail}
+                <span className={`ml-2 rounded px-1.5 py-0.5 text-xs ${app.consents.smsReceive ? "bg-status-green/10 text-status-green" : "bg-cream text-muted"}`}>
+                  문자 수신 {app.consents.smsReceive ? "동의" : "미동의"}
+                </span>
               </Row>
               <Row label="행사">
                 {app.eventTitle}
@@ -271,7 +274,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                   <form action={b(confirmDepositAction, app.applicationNo, app.id)} className="flex flex-col gap-2">
                     <p className="text-sm font-medium">입금 확인 (계좌이체)</p>
                     <p className="text-xs text-muted">
-                      통장에서 {formatWon(app.totalAmount ?? 0)} 입금(입금자명에 신청번호 {app.applicationNo})을 확인한 뒤 누르세요.
+                      통장에서 {formatWon(app.totalAmount ?? 0)} 입금(입금자명은 보통 신청자 {app.contactName})을 확인한 뒤 누르세요.
                       {data.holdExpiresAt && ` 입금 기한: ${formatKst(data.holdExpiresAt)}`}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -285,10 +288,10 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                       </label>
                     </div>
                     <label className="flex items-start gap-2 text-sm">
-                      <input type="checkbox" name="approve" value="yes" className="mt-1" />
+                      <input type="checkbox" name="approve" value="yes" defaultChecked className="mt-1" />
                       <span>
                         입금 확인과 함께 승인(예약확정)
-                        <span className="block text-xs text-muted">신청 내용을 이미 검토했다면 체크하세요. 체크하지 않으면 신청접수 상태가 되고, 검토 후 승인합니다.</span>
+                        <span className="block text-xs text-muted">기본으로 체크되어 있습니다. 신청 내용을 따로 검토하려면 체크를 풀고 누르세요(신청접수 상태가 되고, 검토 후 승인합니다).</span>
                       </span>
                     </label>
                     <button type="submit" className="btn-primary">

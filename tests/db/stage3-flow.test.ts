@@ -258,6 +258,8 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     expect(mail?.body).toContain("농협 301-0000-0000-00");
     expect(mail?.body).toContain(s.no);
     expect(mail?.body).toMatch(/입금 기한: \d{4}\. \d{2}\. \d{2}\. \d{2}:\d{2}까지/);
+    expect(mail?.body).toContain("입금자명에 신청하신 분 이름을 적어주세요.");
+    expect(mail?.body).not.toContain("입금자명에 신청번호");
     expect(logs.some((l) => l.event === "staff:awaiting_deposit" && l.recipient === "staff@taeil.org")).toBe(true);
 
     // 입금 기한 24시간, 알림 3시간 전 → 21시간 뒤에는 아직, 21.5시간 뒤 한 번

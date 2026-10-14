@@ -9,7 +9,7 @@ import { newUploadToken, uploadAttachment } from "@/server/booking/attachments";
 import { getDayAvailability, getMonthCalendar } from "@/server/booking/availability";
 import { expirePendingApplications } from "@/server/booking/expire";
 import { submitApplication } from "@/server/booking/submit";
-import { closureRules, applications, attachments, payments, slotOccupancies, spaces } from "@/server/db/schema";
+import { closureRules, applications, attachments, notificationLogs, payments, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
 import { saveDiscountRule } from "@/server/pricing/discount-service";
 import { saveFeeSchedule } from "@/server/pricing/fee-service";
@@ -111,6 +111,22 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     const view = await getApplicationForApplicant(db, r.applicationNo, r.accessToken);
     expect(view?.application.applicationNo).toBe(r.applicationNo);
     expect(await getApplicationForApplicant(db, r.applicationNo, "wrong-token")).toBeNull();
+  });
+
+  it("문자 수신 동의(선택)는 체크했을 때만 동의 시각을 남긴다", async () => {
+    const r = await submitApplication(
+      db,
+      form({ date: "2026-11-19", start: "14:00", end: "16:00", orgName: "□□모임", contactEmail: "sms@example.org", consents: ["privacy", "operationRules", "refundRules", "smsReceive"] }),
+      {},
+      now,
+    );
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    const [app] = await db.select().from(applications).where(eq(applications.applicationNo, r.applicationNo));
+    expect(Object.keys(app!.consents).sort()).toEqual(["operationRules", "privacy", "refundRules", "smsReceive"]);
+    await db.delete(payments).where(eq(payments.applicationId, app!.id));
+    await db.delete(notificationLogs).where(eq(notificationLogs.applicationId, app!.id));
+    await db.delete(applications).where(eq(applications.id, app!.id));
   });
 
   it("빈 신청서를 내면 기본 입력 오류와 동의 누락을 한 번에 알려 준다", async () => {

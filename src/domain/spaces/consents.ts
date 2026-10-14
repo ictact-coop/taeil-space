@@ -8,6 +8,9 @@ export const baseConsents = {
 /** 야간(주간 종료 시각 이후)을 포함하면 추가로 받는 동의 */
 export const nightConsent = { nightRules: "야간 출입문 관리 규정" } as const;
 
+/** 선택 동의(안 해도 신청 가능). 동의하면 applications.consents에 동의 시각이 남는다 */
+export const optionalConsents = { smsReceive: "문자(SMS) 수신" } as const;
+
 /** 공간별로 켜는 추가 동의 */
 export const extraConsentCatalog = {
   hallRules: "공연장 이용 규정",

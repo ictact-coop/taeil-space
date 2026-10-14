@@ -6,6 +6,8 @@ import { Steps } from "@/components/public/steps";
 import { extractAccountNumber } from "@/domain/payments/bank-account";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 import { formatKst } from "@/lib/time";
+import { fillTemplate } from "@/domain/messages/template";
+import { templateVars } from "@/server/notifications/queue";
 import { getApplicantView } from "@/server/applicant/current";
 import { db } from "@/server/db/client";
 import { publicPaymentConfig } from "@/server/payments/gateway";
@@ -40,6 +42,7 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
     settings["payment.bankAccountInfo"].trim() ||
     (((app.policySnapshot as { settings?: { values?: Record<string, unknown> } } | null)?.settings?.values?.["payment.bankAccountInfo"] as string | undefined) ?? "").trim();
   const accountNo = extractAccountNumber(bankInfo);
+  const depositorGuide = fillTemplate(settings["payment.depositorNameGuide"], templateVars(app, spaceName));
   const word = bank ? "입금" : "결제";
   const time = `${formatKst(app.startsAt).slice(0, 13)} ${formatKst(app.startsAt).slice(-5)}–${formatKst(app.endsAt).slice(-5)}`;
 
@@ -121,9 +124,8 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
             ) : (
               <p className="mt-2">입금 계좌는 기념관에서 따로 안내해 드립니다. 문의 02-318-0903~4</p>
             )}
-            <p className="mt-3 text-xs text-muted">
-              입금자명에 신청번호 <strong>{app.applicationNo}</strong>를 적어 주세요. 입금 후 따로 연락하지 않으셔도 담당자가 확인합니다.
-            </p>
+            <p className="mt-3 text-sm font-medium text-ink">{depositorGuide}</p>
+            <p className="mt-1 text-xs text-muted">입금 후 따로 연락하지 않으셔도 담당자가 확인합니다.</p>
             {bankInfo && (
               <div className="mt-3">
                 <CopyButton value={accountNo ?? bankInfo} label={accountNo ? "계좌번호 복사" : "계좌 정보 복사"} />
