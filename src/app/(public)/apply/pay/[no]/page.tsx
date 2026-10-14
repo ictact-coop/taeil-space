@@ -100,7 +100,10 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
           <dt className="text-muted">행사명</dt>
           <dd>{app.eventTitle}</dd>
           <dt className="text-muted">{word} 금액</dt>
-          <dd className="font-serif text-2xl text-brick">{formatWon(app.totalAmount ?? 0)}</dd>
+          <dd className="font-serif text-2xl text-brick">
+            {formatWon(app.totalAmount ?? 0)}
+            <span className="ml-1 text-xs font-normal text-muted">(부가세 포함)</span>
+          </dd>
           {pending && expiresAt && (
             <>
               <dt className="text-muted">{word} 기한</dt>

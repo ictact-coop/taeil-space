@@ -129,6 +129,24 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     await db.delete(applications).where(eq(applications.id, app!.id));
   });
 
+  it("세금계산서 발행 희망 정보를 받아 저장하고, 잘못된 입력은 항목별로 알려 준다", async () => {
+    const bad = await submitApplication(db, form({ date: "2026-11-24", start: "14:00", end: "16:00", orgName: "△△조합", contactEmail: "tax@example.org", receiptType: "tax_invoice", taxBizNo: "1" }), {}, now);
+    expect(bad).toMatchObject({ ok: false, fieldErrors: { taxBizNo: expect.any(String), taxCompany: expect.any(String) } });
+    const r = await submitApplication(
+      db,
+      form({ date: "2026-11-24", start: "14:00", end: "16:00", orgName: "△△조합", contactEmail: "tax@example.org", receiptType: "tax_invoice", taxBizNo: "123-82-87650", taxCompany: "△△협동조합", taxCeo: "김대표", taxEmail: "bill@example.org" }),
+      {},
+      now,
+    );
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    const [app] = await db.select().from(applications).where(eq(applications.applicationNo, r.applicationNo));
+    expect(app!.receiptRequest).toMatchObject({ type: "tax_invoice", bizNo: "1238287650", company: "△△협동조합", email: "bill@example.org" });
+    await db.delete(payments).where(eq(payments.applicationId, app!.id));
+    await db.delete(notificationLogs).where(eq(notificationLogs.applicationId, app!.id));
+    await db.delete(applications).where(eq(applications.id, app!.id));
+  });
+
   it("빈 신청서를 내면 기본 입력 오류와 동의 누락을 한 번에 알려 준다", async () => {
     const r = await submitApplication(db, form({ orgName: "", contactEmail: "x", consents: ["privacy"] }), {}, now);
     expect(r.ok).toBe(false);

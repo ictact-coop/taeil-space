@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidDateString } from "@/domain/calendar/closures";
+import { receiptRawFromForm } from "./receipt";
 import { toMinutes } from "./time";
 
 const time = z.string().regex(/^([01]\d|2[0-4]):[0-5]\d$/, "시각 형식이 올바르지 않습니다.");
@@ -55,5 +56,6 @@ export function applicationInputFromForm(form: FormData): Record<string, unknown
     optionKeys: form.getAll("optionKeys").map(String),
     consents: form.getAll("consents").map(String),
     uploadToken: s("uploadToken"),
+    ...receiptRawFromForm(form),
   };
 }

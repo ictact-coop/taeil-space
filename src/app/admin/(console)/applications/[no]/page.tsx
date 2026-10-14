@@ -30,6 +30,7 @@ import {
   startReviewAction,
 } from "./actions";
 import { DISCOUNT_EDITABLE_STATUSES } from "@/server/applications/discount-adjust";
+import { describeReceipt } from "@/domain/booking/receipt";
 import { listDiscountRules } from "@/server/pricing/discount-service";
 import { TemplateTextarea } from "./template-textarea";
 import { getSettings } from "@/server/settings/service";
@@ -121,6 +122,11 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
               {app.nightManagerName && (
                 <Row label="야간 출입문">
                   {app.nightManagerName} · {app.nightManagerPhone}
+                </Row>
+              )}
+              {app.receiptRequest && (
+                <Row label="증빙 발행">
+                  <span className="rounded bg-warning/10 px-1.5 py-0.5 text-xs text-warning">발행 희망</span> {describeReceipt(app.receiptRequest)}
                 </Row>
               )}
               {policy?.discount &&

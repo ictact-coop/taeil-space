@@ -5,6 +5,7 @@ import { checkBooking, halfYearRange, type Violation } from "@/domain/booking/ru
 import { calculatePrice } from "@/domain/pricing/calculate";
 import { kstDateTime, toMinutes } from "@/domain/booking/time";
 import { validateRegNo } from "@/domain/organization/reg-no";
+import { parseReceiptRequest, type ReceiptField } from "@/domain/booking/receipt";
 import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
@@ -104,6 +105,10 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
   const ctx = await loadBookingContext(db, space, now);
   const s = ctx.settings;
   const fieldErrors: Partial<Record<string, string>> = {};
+
+  // 증빙 발행 희망(선택)
+  const receipt = parseReceiptRequest(raw as Partial<Record<ReceiptField, string>>);
+  if (!receipt.ok) Object.assign(fieldErrors, receipt.errors);
 
   // 설정에 따라 달라지는 입력 검사
   let regNo: string | null = null;
@@ -255,6 +260,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
             discount: discount ? { id: discount.id, name: discount.name, kind: discount.kind, value: discount.value, proofRequired: discount.proofRequired } : null,
           },
           totalAmount: price.total,
+          receiptRequest: receipt.ok ? receipt.value : null,
           consents: Object.fromEntries(
             [...Object.keys(requiredConsents), ...Object.keys(optionalConsents).filter((k) => input.consents.includes(k))].map((k) => [k, consentAt]),
           ),

@@ -325,7 +325,7 @@ export function BookingPicker({
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-muted">예상 대관료</p>
+              <p className="mt-3 text-xs text-muted">예상 대관료 (부가세 포함)</p>
               <p className="font-serif text-3xl text-brick">{won(quote.price.total)}</p>
               <p className="mt-1 text-xs text-muted">감면 대상 정보 입력은 다음 단계에서 할 수 있습니다.</p>
             </>
