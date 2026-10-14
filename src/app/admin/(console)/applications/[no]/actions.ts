@@ -6,6 +6,7 @@ import { hasPermission } from "@/domain/auth/permissions";
 import { withNotice } from "@/lib/url";
 import type { MutationResult } from "@/server/actor";
 import { cancelConfirmedApplication, deleteApplication, setCompleted } from "@/server/applications/admin-manage";
+import { changeApplicationDiscount } from "@/server/applications/discount-adjust";
 import { addNote, approveApplication, confirmDeposit, rejectApplication, requestRevision, startReview } from "@/server/applications/review";
 import { requireAdmin, type CurrentAdmin } from "@/server/auth/current";
 import { PermissionError } from "@/server/auth/permissions";
@@ -13,7 +14,7 @@ import { db } from "@/server/db/client";
 import { getGateway } from "@/server/payments/gateway";
 import { completeManualRefund, retryRefund } from "@/server/payments/refunds";
 
-async function run(no: string, done: string, fn: (admin: CurrentAdmin) => Promise<MutationResult>): Promise<never> {
+async function run(no: string, done: string | (() => string), fn: (admin: CurrentAdmin) => Promise<MutationResult>): Promise<never> {
   const admin = await requireAdmin("applications.view");
   let result: MutationResult;
   try {
@@ -24,12 +25,22 @@ async function run(no: string, done: string, fn: (admin: CurrentAdmin) => Promis
   }
   revalidatePath(`/admin/applications/${no}`);
   const path = `/admin/applications/${no}`;
-  redirect(result.ok ? withNotice(path, { done }) : withNotice(path, { error: result.formError ?? Object.values(result.fieldErrors ?? {})[0] ?? "처리하지 못했습니다." }));
+  redirect(result.ok ? withNotice(path, { done: typeof done === "function" ? done() : done }) : withNotice(path, { error: result.formError ?? Object.values(result.fieldErrors ?? {})[0] ?? "처리하지 못했습니다." }));
 }
 
 const actor = (a: CurrentAdmin) => a;
 const s = (f: FormData, k: string) => String(f.get(k) ?? "");
 
+export async function changeDiscountAction(no: string, id: string, f: FormData): Promise<void> {
+  const ruleId = s(f, "discountRuleId");
+  let done = "감면을 바꿨습니다.";
+  await run(no, () => done, async (a) => {
+    const r = await changeApplicationDiscount(db, getGateway(), { actor: actor(a), applicationId: id, discountRuleId: ruleId || null, reason: s(f, "reason") });
+    if (!r.ok) return r;
+    done = r.value.refundAmount > 0 ? `감면을 바꿨습니다. 차액 ${r.value.refundAmount.toLocaleString("ko-KR")}원 환불을 요청했습니다.` : `감면을 바꿨습니다. 금액: ${r.value.total.toLocaleString("ko-KR")}원`;
+    return { ok: true };
+  });
+}
 export async function startReviewAction(no: string, id: string): Promise<void> {
   await run(no, "검토를 시작했습니다.", (a) => startReview(db, { actor: actor(a), applicationId: id }));
 }

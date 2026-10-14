@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageNumbers } from "@/lib/pagination";
 import { Notice, PageHeader } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { formatWon } from "@/domain/pricing/fee-schedule";
@@ -14,7 +15,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   await requireAdmin("applications.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const { rows, tab, tabCounts, pageSize } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "pending", q: sp.q ?? "", page });
+  const { rows, tab, tabCounts, pageCount, total } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "pending", q: sp.q ?? "", page });
   const link = (params: Record<string, string>) => `/admin/applications?${new URLSearchParams({ tab, ...(sp.q ? { q: sp.q } : {}), ...params }).toString()}`;
 
   return (
@@ -95,18 +96,35 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex gap-2">
+      <nav className="mt-3 flex flex-wrap items-center gap-1 text-sm" aria-label="페이지">
         {page > 1 && (
-          <Link href={link({ page: String(page - 1) })} className="btn-ghost">
+          <Link href={link({ page: String(page - 1) })} className="btn-ghost px-2">
             ‹ 이전
           </Link>
         )}
-        {rows.length === pageSize && (
-          <Link href={link({ page: String(page + 1) })} className="btn-ghost">
+        {pageNumbers(page, pageCount).map((n, i) =>
+          n === null ? (
+            <span key={`gap-${i}`} className="px-1 text-muted" aria-hidden>
+              …
+            </span>
+          ) : n === page ? (
+            <span key={n} aria-current="page" className="min-w-8 rounded bg-navy px-2 py-1 text-center font-semibold text-white">
+              {n}
+            </span>
+          ) : (
+            <Link key={n} href={link({ page: String(n) })} className="min-w-8 rounded px-2 py-1 text-center text-navy hover:bg-cream">
+              {n}
+            </Link>
+          ),
+        )}
+        {page < pageCount && (
+          <Link href={link({ page: String(page + 1) })} className="btn-ghost px-2">
             다음 ›
           </Link>
         )}
-      </div>
+        <span className="ml-auto text-xs text-muted">총 {total}건</span>
+      </nav>
     </div>
   );
 }
+

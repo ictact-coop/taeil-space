@@ -558,6 +558,8 @@ export const refundBasis = pgEnum("refund_basis", [
   "venue_fault",
   "late_payment",
   "payment_error",
+  /** 결제 후 관리자가 감면을 적용해 차액을 돌려줌 */
+  "discount",
 ]);
 export const refundStatus = pgEnum("refund_status", ["requested", "succeeded", "failed"]);
 

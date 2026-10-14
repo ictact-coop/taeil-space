@@ -250,7 +250,7 @@ function Body({
 
         {(props.options.length > 0 || props.discounts.length > 0) && (
           <fieldset className="grid gap-4 rounded-lg border border-line bg-white p-5 sm:grid-cols-2">
-            <legend className="px-1 font-semibold text-navy">옵션·감면</legend>
+            <legend className="px-1 font-semibold text-navy">감면 대상 확인</legend>
             {props.options.length > 0 && (
               <div className="flex flex-col gap-2 text-sm">
                 <span className="font-medium">부대시설·옵션</span>

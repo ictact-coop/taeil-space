@@ -46,7 +46,8 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string
   const tabCounts = Object.fromEntries(
     statusTabs.map((t) => [t.key, counts.filter((c) => t.statuses.length === 0 || t.statuses.includes(c.status)).reduce((s, c) => s + c.n, 0)]),
   );
-  return { rows, tab: tab.key, tabCounts, pageSize: PAGE_SIZE };
+  const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(applications).where(where);
+  return { rows, tab: tab.key, tabCounts, pageSize: PAGE_SIZE, total, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
 export async function getApplicationForAdmin(db: DbOrTx, applicationNo: string) {

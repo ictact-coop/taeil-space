@@ -19,6 +19,7 @@ import {
   addNoteAction,
   approveAction,
   cancelConfirmedAction,
+  changeDiscountAction,
   confirmDepositAction,
   deleteApplicationAction,
   manualRefundAction,
@@ -28,6 +29,8 @@ import {
   setCompletedAction,
   startReviewAction,
 } from "./actions";
+import { DISCOUNT_EDITABLE_STATUSES } from "@/server/applications/discount-adjust";
+import { listDiscountRules } from "@/server/pricing/discount-service";
 import { TemplateTextarea } from "./template-textarea";
 import { getSettings } from "@/server/settings/service";
 import { parseMessageTemplates } from "@/domain/messages/template";
@@ -62,11 +65,13 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
   const canReview = hasPermission(admin, "applications.review");
   const canRefund = hasPermission(admin, "refunds.manage");
   const price = app.priceSnapshot as { items?: { label: string; amount: number }[] } | null;
-  const policy = app.policySnapshot as { discount?: { name: string } | null } | null;
+  const policy = app.policySnapshot as { discount?: { name: string } | null; discountChangedBy?: string } | null;
   const reviewable = ["submitted", "reviewing", "revision_requested"].includes(app.status);
   const pendingBank = app.status === "pending_payment" && data.payments.some((p) => p.method === "bank_transfer" && p.status === "ready");
   const messageTemplates = canReview ? parseMessageTemplates((await getSettings(db))["content.reviewMessageTemplates"]) : [];
   const vars = templateVars(app, space.name);
+  const discountEditable = (DISCOUNT_EDITABLE_STATUSES as readonly string[]).includes(app.status) && Boolean(price?.items?.length);
+  const discountOptions = discountEditable && canReview ? (await listDiscountRules(db)).filter((d) => d.isActive || d.id === app.discountRuleId) : [];
   const b = (fn: (...a: never[]) => unknown, ...args: unknown[]) => (fn as (...a: unknown[]) => unknown).bind(null, ...args) as (f: FormData) => Promise<void>;
 
   return (
@@ -118,7 +123,12 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                   {app.nightManagerName} · {app.nightManagerPhone}
                 </Row>
               )}
-              {policy?.discount && <Row label="감면 신청">{policy.discount.name} — 증빙을 확인하고 인정되지 않으면 반려하세요(P-16).</Row>}
+              {policy?.discount &&
+                (policy.discountChangedBy ? (
+                  <Row label="감면">{policy.discount.name} — 담당자가 적용(처리 이력 참고)</Row>
+                ) : (
+                  <Row label="감면 신청">{policy.discount.name} — 증빙을 확인하고 인정되지 않으면 반려하세요(P-16).</Row>
+                ))}
               {app.revisionMessage && (
                 <Row label="보완 요청">
                   {app.revisionMessage}
@@ -173,6 +183,29 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 <span>{formatWon(app.totalAmount ?? 0)}</span>
               </li>
             </ul>
+            {canReview && discountEditable && (
+              <details className="mt-3 rounded border border-line p-3 text-sm" open={false}>
+                <summary className="cursor-pointer font-medium text-navy">감면 적용·변경</summary>
+                <form action={b(changeDiscountAction, app.applicationNo, app.id)} className="mt-3 flex flex-col gap-2">
+                  <p className="text-xs text-muted">
+                    기본·추가·옵션 금액은 신청 당시 그대로 두고 감면만 다시 계산합니다.
+                    {app.status === "pending_payment" ? " 입금 전이라 받을 금액이 바로 바뀝니다." : " 이미 받은 금액에서 줄어든 만큼 환불 요청을 만듭니다(계좌이체는 환불 처리에서 이체 후 완료)."}
+                  </p>
+                  <select name="discountRuleId" defaultValue={app.discountRuleId ?? ""} className="input" aria-label="감면 항목">
+                    <option value="">감면 없음</option>
+                    {discountOptions.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.kind === "percent" ? `${d.value}%` : formatWon(d.value)}){d.isActive ? "" : " - 사용 중지"}
+                      </option>
+                    ))}
+                  </select>
+                  <input name="reason" required minLength={2} placeholder="변경 사유 (예: 고유번호증 확인)" className="input" aria-label="변경 사유" />
+                  <button type="submit" className="btn-secondary">
+                    감면 바꾸기
+                  </button>
+                </form>
+              </details>
+            )}
             <h3 className="mt-4 text-sm font-medium">결제 시도</h3>
             <ul className="mt-1 text-xs">
               {data.payments.map((p) => (
@@ -191,7 +224,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                     const pay = data.payments.find((p) => p.id === r.paymentId);
                     return (
                       <li key={r.id} className="rounded border border-line p-2">
-                        {refundBasisLabels[r.basis]} · {r.ratePercent}% · {formatWon(r.amount)} · <strong>{refundStatusLabels[r.status]}</strong>
+                        {refundBasisLabels[r.basis]}{r.basis === "discount" ? "" : ` · ${r.ratePercent}%`} · {formatWon(r.amount)} · <strong>{refundStatusLabels[r.status]}</strong>
                         {r.failureReason && r.status !== "succeeded" && <span className="text-danger"> — {r.failureReason}</span>}
                         {r.manualNote && <span className="text-muted"> — {r.manualNote}</span>}
                         {canRefund && r.status !== "succeeded" && pay?.method === "bank_transfer" && (
