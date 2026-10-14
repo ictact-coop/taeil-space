@@ -384,6 +384,15 @@ export const settingDefinitions = {
   }),
 
   // ─── 안내·규정 문구 ([요구] 11·12장) ───
+  "content.heroHtml": text({
+    group: "content",
+    label: "첫 페이지 상단 안내 상자(HTML)",
+    description:
+      "첫 페이지 그림 위 흰 상자에 들어가는 내용입니다. 태그(<p> <h1> <span> <br> 등)와 class는 그대로 두고 글자만 고치면 됩니다. 허용하지 않는 태그·속성(script, style, onclick 등)은 화면에 넣을 때 자동으로 지워집니다. 비우면 상자를 숨깁니다.",
+    defaultValue: "<p class=\"text-xs font-semibold tracking-[0.2em] text-brick\">SPACE RENTAL · 2026</p>\n<h1 class=\"mt-3 font-serif text-4xl leading-tight text-navy-deep sm:text-5xl\">모임의 뜻이<br><span class=\"text-brick-dark\">이어지는 공간</span></h1>\n<p class=\"mt-4 text-ink\">전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 입금 후 담당자 심사를 거쳐 확정됩니다.</p>",
+    multiline: true,
+    maxLength: 3000,
+  }),
   "content.guideNotice": text({
     group: "content",
     label: "대관 안내 추가 문구",
