@@ -69,8 +69,8 @@ try {
     for (const e of r.existing) console.log(`  ${e.applicationNo}  ${e.when}  ${e.title}`);
   }
   if (r.conflicts.length) {
-    console.log(`\n일정이 겹쳐 못 가져온 신청 ${r.conflicts.length}건 — 노션에서 중복·시간을 확인하세요`);
-    for (const c of r.conflicts) console.log(`  ${c.when}  ${c.spaceName}  ${c.title}  ↔ ${c.with}\n    ${c.notionUrl}`);
+    console.log(`\n일정이 겹쳐 못 가져온 신청 ${r.conflicts.length}건 — 겹치면 노션에서 '승인'된 신청을 먼저 가져옵니다. 노션에서 중복·시간을 확인하세요`);
+    for (const c of r.conflicts) console.log(`  ${c.when}  ${c.spaceName}  ${c.title} [노션: ${c.notionStatus}]  ↔ ${c.with}\n    ${c.notionUrl}`);
   }
   if (r.skipped.length) {
     console.log(`\n확인이 필요해 건너뛴 신청 ${r.skipped.length}건 — 노션에서 고친 뒤 다시 실행하면 이어서 가져옵니다`);

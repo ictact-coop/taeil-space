@@ -239,7 +239,7 @@ export interface ImportReport {
   created: { applicationNo: string; title: string; spaceName: string; when: string; orgName: string; amount: number; notionStatus: string; warnings: string[] }[];
   existing: { applicationNo: string; title: string; when: string }[];
   skipped: { title: string; date: string | null; reason: string; notionUrl: string }[];
-  conflicts: { title: string; spaceName: string; when: string; with: string; notionUrl: string }[];
+  conflicts: { title: string; spaceName: string; when: string; with: string; notionUrl: string; notionStatus: string }[];
   ignored: number;
 }
 
@@ -266,7 +266,9 @@ export async function importNotionBookings(
     else if (r.ignored) report.ignored += 1;
     else report.skipped.push({ title: r.title, date: r.date, reason: r.reason, notionUrl: r.notionUrl });
   }
-  candidates.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  // 일정이 겹치면 노션에서 '승인'된 신청이 먼저 자리를 잡도록 승인 건을 먼저 처리한다(같은 상태끼리는 시간순)
+  const approvedFirst = (c: ImportCandidate) => (c.notionStatus === "승인" ? 0 : 1);
+  candidates.sort((a, b) => approvedFirst(a) - approvedFirst(b) || a.startsAt.getTime() - b.startsAt.getTime());
 
   try {
     await db.transaction(async (tx) => {
@@ -370,6 +372,7 @@ export async function importNotionBookings(
             when: when(c),
             with: hit?.no ? `${hit.no} ${hit.title}` : hit?.kind === "block" ? "기념관 일정 차단" : "다른 일정",
             notionUrl: c.notionUrl,
+            notionStatus: c.notionStatus,
           });
         }
       }
@@ -383,6 +386,9 @@ export async function importNotionBookings(
           reason: "노션 대관 신청 목록 가져오기",
         });
       }
+      const byTime = (a: { when: string }, b: { when: string }) => a.when.localeCompare(b.when);
+      report.created.sort(byTime);
+      report.conflicts.sort(byTime);
       if (!opts.apply) throw new DryRunRollback();
     });
   } catch (e) {

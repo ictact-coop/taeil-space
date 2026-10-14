@@ -18,11 +18,14 @@ import { refundBasisLabels } from "@/server/payments/refunds";
 import {
   addNoteAction,
   approveAction,
+  cancelConfirmedAction,
   confirmDepositAction,
+  deleteApplicationAction,
   manualRefundAction,
   rejectAction,
   requestRevisionAction,
   retryRefundAction,
+  setCompletedAction,
   startReviewAction,
 } from "./actions";
 
@@ -352,6 +355,69 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
               </form>
             )}
           </Card>
+          {canReview && ["confirmed", "cancel_requested", "completed"].includes(app.status) && (
+            <Card>
+              <h2 className="mb-3 font-semibold text-navy">예약 관리</h2>
+              <div className="flex flex-col gap-4">
+                {app.status !== "completed" && (
+                  <form action={b(cancelConfirmedAction, app.applicationNo, app.id)} className="flex flex-col gap-2">
+                    <p className="text-sm font-medium">예약 취소</p>
+                    <p className="text-xs text-muted">확정된 예약을 취소하고 일정을 다시 엽니다. 환불할 금액이 있으면 환불 처리 목록에 올라갑니다(계좌이체는 이체 후 완료 처리).</p>
+                    <label className="text-sm">
+                      <span className="sr-only">취소 사유</span>
+                      <textarea name="reason" rows={2} required placeholder="취소 사유 (처리 이력에 남습니다)" className="input" />
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        구분
+                        <select name="basis" defaultValue="cancelled" className="input text-sm">
+                          <option value="cancelled">신청자 요청</option>
+                          <option value="venue_fault">기념관 사정</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        환불 비율(%)
+                        <input name="refundPercent" type="number" min={0} max={100} step={1} defaultValue={100} className="input text-sm" />
+                      </label>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="notify" value="yes" defaultChecked />
+                      신청자에게 취소 메일 보내기
+                    </label>
+                    <button type="submit" className="btn-secondary border-danger text-danger">
+                      예약 취소
+                    </button>
+                  </form>
+                )}
+                <form action={setCompletedAction.bind(null, app.applicationNo, app.id, app.status !== "completed")} className="border-t border-line pt-3">
+                  <button type="submit" className="btn-ghost w-full">
+                    {app.status === "completed" ? "예약확정으로 되돌리기" : "이용완료로 표시"}
+                  </button>
+                </form>
+              </div>
+            </Card>
+          )}
+          {admin.isSuper && (
+            <Card>
+              <h2 className="mb-1 font-semibold text-danger">영구 삭제</h2>
+              <p className="mb-3 text-xs text-muted">
+                테스트 데이터나 잘못 만든 신청을 지웁니다. 결제·환불·첨부·알림 기록까지 모두 지워지고 되돌릴 수 없습니다(감사 로그에는 요약이 남습니다). 실제 신청은 반려·취소로 처리하세요.
+              </p>
+              <form action={b(deleteApplicationAction, app.applicationNo, app.id)} className="flex flex-col gap-2">
+                <label className="text-sm">
+                  <span className="sr-only">삭제 사유</span>
+                  <input name="reason" required placeholder="삭제 사유 (예: 테스트 데이터)" className="input" />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  확인: 신청번호 {app.applicationNo}를 입력하세요
+                  <input name="confirmNo" required autoComplete="off" className="input text-sm" />
+                </label>
+                <button type="submit" className="btn-secondary border-danger text-danger">
+                  영구 삭제
+                </button>
+              </form>
+            </Card>
+          )}
         </aside>
       </div>
     </div>

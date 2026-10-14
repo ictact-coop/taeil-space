@@ -78,6 +78,16 @@ describe.skipIf(!hasTestDb)("노션 대관 신청 가져오기", () => {
     expect(await db.select().from(applications)).toHaveLength(2);
   });
 
+  it("겹치면 노션에서 승인된 신청을 먼저 가져온다(시간이 빨라도 미승인은 밀림)", async () => {
+    const overlap = [
+      notionPage({ id: "early-pending", title: "먼저 들어온 접수 전", status: "접수 전", start: "2026-11-20T01:00:00Z", end: "2026-11-20T03:00:00Z", spaces: ["sp-seminar"] }),
+      notionPage({ id: "late-approved", title: "승인된 신청", status: "승인", start: "2026-11-20T02:00:00Z", end: "2026-11-20T04:00:00Z", spaces: ["sp-seminar"] }),
+    ];
+    const r = await importNotionBookings(db, overlap, notionLookups, { since, apply: false, now });
+    expect(r.created.map((c) => c.title)).toEqual(["승인된 신청"]);
+    expect(r.conflicts).toEqual([expect.objectContaining({ title: "먼저 들어온 접수 전", notionStatus: "접수 전", with: expect.stringContaining("승인된 신청") })]);
+  });
+
   it("가져온 신청은 자동 취소·입금 기한 알림을 하지 않고, 담당자가 입금 확인할 수 있다", async () => {
     const afterStart = new Date("2026-10-16T00:00:00Z");
     expect(await sendDepositReminders(db, new Date("2026-10-14T23:00:00Z"))).toBe(0);

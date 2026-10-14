@@ -8,6 +8,8 @@ export type NotificationEvent =
   | "rejected"
   | "approved"
   | "withdrawn"
+  /** 확정된 예약을 기념관이 취소 */
+  | "cancelled"
   | "refunded"
   | "payment_expired"
   /** 계좌이체: 신청 직후 입금 안내 */
@@ -68,6 +70,17 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
       return {
         subject: `[전태일기념관] 대관 신청이 철회되었습니다 (${c.applicationNo})`,
         body: `${head}\n\n요청하신 대로 신청을 철회했습니다.${c.refundAmount ? `\n환불 예정 금액: ${formatWon(c.refundAmount)}` : ""}\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+      };
+    case "cancelled":
+      return {
+        subject: `[전태일기념관] 대관 예약이 취소되었습니다 (${c.applicationNo})`,
+        body: `${head}
+
+확정되었던 대관 예약이 취소되었습니다.${c.reason ? `\n사유: ${c.reason}` : ""}${c.refundAmount ? `\n환불 예정 금액: ${formatWon(c.refundAmount)}` : ""}
+
+문의가 있으시면 기념관으로 연락해 주세요.
+
+신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "refunded":
       return {

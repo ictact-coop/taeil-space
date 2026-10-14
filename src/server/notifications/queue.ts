@@ -14,6 +14,7 @@ const settingKeyFor: Record<NotificationEvent, keyof SettingValues> = {
   rejected: "notification.rejected",
   approved: "notification.approved",
   withdrawn: "notification.cancelled",
+  cancelled: "notification.cancelled",
   refunded: "notification.cancelled",
   payment_expired: "notification.cancelled",
   awaiting_deposit: "notification.submitted",
@@ -70,7 +71,12 @@ export async function enqueueApplicationNotification(
   const rows: (typeof notificationLogs.$inferInsert)[] = [];
   const msg = applicantMessage(event, ctx);
   if (channel === "both" || channel === "email") {
-    rows.push({ applicationId, event, channel: "email", recipient: app.contactEmail, subject: msg.subject, body: msg.body });
+    // 노션에서 가져온 신청 등 이메일이 없으면 보내지 않고 기록만 남긴다
+    rows.push(
+      app.contactEmail.trim()
+        ? { applicationId, event, channel: "email", recipient: app.contactEmail, subject: msg.subject, body: msg.body }
+        : { applicationId, event, channel: "email", recipient: "", subject: msg.subject, body: msg.body, status: "skipped", error: "신청자 이메일이 없습니다." },
+    );
   }
   if (channel === "both" || channel === "lms") {
     rows.push({ applicationId, event, channel: "lms", recipient: app.contactPhone, subject: msg.subject, body: msg.body, status: "skipped", error: "문자(LMS) 발송은 단계 5에서 연결합니다." });
