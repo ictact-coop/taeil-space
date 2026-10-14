@@ -27,6 +27,7 @@ export const auditActionLabels: Record<string, string> = {
   "admin.email-changed": "관리자 이메일 변경(본인)",
   "application.imported": "신청 가져오기(노션)",
   "application.deleted": "신청 영구 삭제",
+  "application.discount_changed": "감면 변경",
   "application.cancelled": "예약 취소",
   "application.completed": "이용완료",
   "setting.confirm": "설정 확정",

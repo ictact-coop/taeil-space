@@ -71,3 +71,15 @@ export function calculatePrice(params: {
   }
   return { items, subtotal, discountAmount, total: subtotal - discountAmount, durationMinutes: duration, nightMinutes };
 }
+
+/** 이미 계산된 요금에서 감면만 바꿔 다시 계산한다(관리자가 나중에 감면을 적용·변경할 때). 기본·추가·야간·옵션 금액은 그대로 둔다 */
+export function repriceWithDiscount(price: Pick<PriceQuote, "items"> & Partial<PriceQuote>, discount: DiscountForPrice | null): PriceQuote {
+  const items = price.items.filter((i) => i.kind !== "discount");
+  const subtotal = items.reduce((sum, i) => sum + i.amount, 0);
+  let discountAmount = 0;
+  if (discount) {
+    discountAmount = discount.kind === "percent" ? Math.floor((subtotal * discount.value) / 100) : Math.min(discount.value, subtotal);
+    if (discountAmount > 0) items.push({ kind: "discount", label: `감면: ${discount.name}`, amount: -discountAmount });
+  }
+  return { items, subtotal, discountAmount, total: subtotal - discountAmount, durationMinutes: price.durationMinutes ?? 0, nightMinutes: price.nightMinutes ?? 0 };
+}

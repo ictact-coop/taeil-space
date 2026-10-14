@@ -17,6 +17,7 @@ export const refundBasisLabels: Record<RefundBasis, string> = {
   venue_fault: "기념관 사정",
   late_payment: "기한 후 결제",
   payment_error: "결제 오류",
+  discount: "감면 적용(차액)",
 };
 
 /**
@@ -25,7 +26,7 @@ export const refundBasisLabels: Record<RefundBasis, string> = {
  */
 export async function createRefund(
   tx: DbOrTx,
-  params: { applicationId: string; basis: RefundBasis; ratePercent: number; reason: string; requestedBy?: string | null },
+  params: { applicationId: string; basis: RefundBasis; ratePercent: number; reason: string; requestedBy?: string | null; amount?: number },
 ): Promise<string | null> {
   const [payment] = await tx
     .select()
@@ -38,7 +39,8 @@ export async function createRefund(
     .select({ used: sql<number>`coalesce(sum(${refunds.amount}), 0)::int` })
     .from(refunds)
     .where(and(eq(refunds.paymentId, payment.id), inArray(refunds.status, ["requested", "succeeded"])))) as [{ used: number }];
-  const amount = Math.min(Math.floor((payment.amount * params.ratePercent) / 100), payment.amount - used);
+  // amount를 주면 그 금액(감면 차액 등), 아니면 결제액의 ratePercent
+  const amount = Math.min(params.amount ?? Math.floor((payment.amount * params.ratePercent) / 100), payment.amount - used);
   if (amount <= 0) return null;
   const [row] = await tx
     .insert(refunds)

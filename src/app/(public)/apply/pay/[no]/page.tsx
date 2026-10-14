@@ -42,6 +42,10 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
     settings["payment.bankAccountInfo"].trim() ||
     (((app.policySnapshot as { settings?: { values?: Record<string, unknown> } } | null)?.settings?.values?.["payment.bankAccountInfo"] as string | undefined) ?? "").trim();
   const accountNo = extractAccountNumber(bankInfo);
+  const infoLines = bankInfo.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const accountIdx = accountNo ? infoLines.findIndex((l) => l.includes(accountNo)) : -1;
+  const accountLine = infoLines[accountIdx >= 0 ? accountIdx : 0] ?? "";
+  const restInfo = infoLines.filter((_, i) => i !== (accountIdx >= 0 ? accountIdx : 0)).join("\n");
   const depositorGuide = fillTemplate(settings["payment.depositorNameGuide"], templateVars(app, spaceName));
   const word = bank ? "입금" : "결제";
   const time = `${formatKst(app.startsAt).slice(0, 13)} ${formatKst(app.startsAt).slice(-5)}–${formatKst(app.endsAt).slice(-5)}`;
@@ -118,8 +122,9 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
             <p className="font-semibold text-navy">입금 계좌</p>
             {bankInfo ? (
               <>
-                {accountNo && <p className="mt-2 font-mono text-lg font-semibold tracking-wide text-ink">{accountNo}</p>}
-                <Paragraphs text={bankInfo} className="mt-2" />
+                {/* 계좌번호가 든 줄(은행·계좌번호·예금주)을 크게, 나머지 줄(문의처 등)은 그 아래에 */}
+                <p className="mt-2 text-lg font-bold tracking-wide break-keep text-ink">{accountLine}</p>
+                {restInfo && <Paragraphs text={restInfo} className="mt-2" />}
               </>
             ) : (
               <p className="mt-2">입금 계좌는 기념관에서 따로 안내해 드립니다. 문의 02-318-0903~4</p>
