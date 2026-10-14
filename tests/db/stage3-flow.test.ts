@@ -379,6 +379,12 @@ describe.skipIf(!hasTestDb)("관리자 조회", () => {
       expect(list.tab).toBe("pending"); // 기본은 입금 대기
       expect(list.tabCounts).toEqual({ pending: 1, review: 1, confirmed: 2, rejected: 1, all: 6 });
       expect((await listApplicationsForAdmin(db, { tab: "confirmed", q: "", page: 1 })).rows.map((r) => r.app.applicationNo).sort()).toEqual(["R-T-2", "R-T-3"]);
+      // 입금 대기는 최근 신청이 위(신청일이 없으면 생성 시각)
+      await db.insert(applications).values([
+        { ...more("R-T-6", "pending_payment"), submittedAt: new Date("2026-10-10T00:00:00Z") },
+        { ...more("R-T-7", "pending_payment"), submittedAt: new Date("2026-10-12T00:00:00Z") },
+      ]);
+      expect((await listApplicationsForAdmin(db, { tab: "pending", q: "", page: 1 })).rows.map((r) => r.app.applicationNo)).toEqual(["R-T-1", "R-T-7", "R-T-6"]);
       expect((await getDashboard(db)).reviewing).toBe(1);
       expect((await getMonthSchedule(db, "2026-11", null)).apps).toHaveLength(1);
       expect(await listRefundsNeedingAction(db)).toEqual([]);

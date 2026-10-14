@@ -20,6 +20,8 @@ const legacyTabs: Record<string, string> = { todo: "review", revision: "review",
 
 const PAGE_SIZE = 30;
 
+const submittedOrCreated = sql`coalesce(${applications.submittedAt}, ${applications.createdAt})`;
+
 export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string; q: string; page: number }) {
   const key = legacyTabs[params.tab] ?? params.tab;
   const tab = statusTabs.find((t) => t.key === key) ?? statusTabs[0]!;
@@ -36,7 +38,8 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(where)
-    .orderBy(tab.key === "review" ? asc(applications.paidAt) : tab.key === "pending" ? asc(applications.createdAt) : desc(applications.createdAt))
+    // 확인 필요는 입금 확인 순(오래된 것부터), 나머지는 최근 신청이 위(노션에서 가져온 신청은 노션 신청등록일 기준)
+    .orderBy(...(tab.key === "review" ? [asc(applications.paidAt)] : [desc(submittedOrCreated), desc(applications.createdAt)]))
     .limit(PAGE_SIZE)
     .offset((Math.max(1, params.page) - 1) * PAGE_SIZE);
   const counts = await db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status);
