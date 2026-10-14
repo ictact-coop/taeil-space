@@ -8,8 +8,6 @@ import { enqueueApplicationNotification, flushNotifications } from "@/server/not
 import type { PaymentGateway } from "@/server/payments/gateway";
 import { createRefund, processRefund } from "@/server/payments/refunds";
 import { getSettings } from "@/server/settings/service";
-import { toMinutesOfDay } from "@/lib/time-of-day";
-import { toMinutes } from "@/domain/booking/time";
 import { lockApplication, transition, TransitionError } from "./transition";
 
 interface PolicySnapshot {
@@ -70,8 +68,6 @@ export const revisionSchema = z.object({
   eventTitle: z.string().trim().min(1, "행사명을 입력하세요.").max(100),
   eventPurpose: z.string().trim().min(1, "행사 목적과 내용을 입력하세요.").max(3000),
   expectedHeadcount: z.coerce.number().int().min(1, "예상 인원을 입력하세요.").max(10000),
-  nightManagerName: z.string().trim().max(50),
-  nightManagerPhone: z.string().trim().max(20),
   uploadToken: z.string().min(20),
   note: z.string().trim().max(1000),
 });
@@ -85,11 +81,8 @@ export async function submitRevision(db: Db, p: { applicationId: string; raw: Re
       const app = await lockApplication(tx, { id: p.applicationId });
       if (!app || app.status !== "revision_requested") throw new TransitionError("보완할 수 있는 신청이 아닙니다.");
       const [space] = await tx.select().from(spaces).where(eq(spaces.id, app.spaceId));
-      const settings = await getSettings(tx);
       const errors: Record<string, string> = {};
       if (space?.minHeadcount && input.expectedHeadcount < space.minHeadcount) errors.expectedHeadcount = `${space.minHeadcount}명 이상이어야 합니다.`;
-      const night = toMinutesOfDay(app.endsAt) > toMinutes(settings["operation.dayEnd"]);
-      if (night && (!input.nightManagerName || !/^0\d{8,10}$/.test(input.nightManagerPhone.replace(/[\s-]/g, "")))) errors.nightManagerName = "야간 출입문 관리 담당자와 연락처를 입력하세요.";
       if (Object.keys(errors).length > 0) throw Object.assign(new TransitionError("입력값을 확인하세요."), { fieldErrors: errors });
       await transition(tx, app, "reviewing", {
         actorType: "applicant",
@@ -100,8 +93,6 @@ export async function submitRevision(db: Db, p: { applicationId: string; raw: Re
           eventTitle: input.eventTitle,
           eventPurpose: input.eventPurpose,
           expectedHeadcount: input.expectedHeadcount,
-          nightManagerName: night ? input.nightManagerName : null,
-          nightManagerPhone: night ? input.nightManagerPhone : null,
         },
       });
       await tx

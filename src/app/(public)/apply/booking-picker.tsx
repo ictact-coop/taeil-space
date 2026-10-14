@@ -188,20 +188,55 @@ export function BookingPicker({
                   <p className="text-sm text-danger">{day.dateViolation.message}</p>
                 ) : (
                   <>
-                    <div className="mb-3 flex flex-wrap gap-1" aria-label="시간대별 상태">
-                      {day.slots.map((s) => (
-                        <span
-                          key={s.start}
-                          title={`${s.start}~${s.end} ${slotLabel[s.state]}`}
-                          className={`rounded px-1.5 py-0.5 text-[11px] ${
-                            s.state === "free" ? "bg-status-green/10 text-status-green" : s.state === "past" ? "bg-cream text-muted" : "bg-cream-dark text-muted line-through"
-                          } ${toMin(s.start) >= toMin(day.dayEnd) ? "ring-1 ring-navy/30" : ""}`}
-                        >
-                          {s.start}
-                          <span className="sr-only"> {slotLabel[s.state]}</span>
-                        </span>
-                      ))}
+                    <ul className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted" aria-label="시간 표시 안내">
+                      <li className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm bg-status-green" aria-hidden /> 선택 가능
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm bg-brick" aria-hidden /> 선택한 시간
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border border-dashed border-line bg-cream-dark" aria-hidden /> 선택 불가(예약·신청 중·대관불가·지난 시간)
+                      </li>
+                    </ul>
+                    <div className="mb-3 grid grid-cols-4 gap-1 sm:grid-cols-6" aria-label="시간대별 상태">
+                      {day.slots.map((s) => {
+                        const selected = start !== null && (end === null ? s.start === start : toMin(s.start) >= toMin(start) && toMin(s.start) < toMin(end));
+                        const canStart = startOptions.includes(s.start);
+                        const night = toMin(s.start) >= toMin(day.dayEnd);
+                        const cls = selected
+                          ? "border-brick bg-brick text-white font-semibold"
+                          : s.state === "free"
+                            ? `border-status-green bg-status-green text-white font-semibold ${canStart ? "hover:bg-status-green/85 cursor-pointer" : "cursor-default"}`
+                            : "border-dashed border-line bg-cream-dark/70 text-muted/70 line-through cursor-not-allowed";
+                        const label = `${s.start}~${s.end} ${selected ? "선택함" : slotLabel[s.state]}${night ? " (야간)" : ""}`;
+                        return canStart ? (
+                          <button
+                            key={s.start}
+                            type="button"
+                            title={label}
+                            aria-label={`${label}, 시작 시각으로 선택`}
+                            aria-pressed={selected}
+                            onClick={() => {
+                              setStart(s.start);
+                              const ends = endOptionsFor(s.start);
+                              setEnd(ends[0] ?? null);
+                            }}
+                            className={`rounded border px-1 py-1.5 text-center text-xs ${cls}`}
+                          >
+                            {s.start}
+                            {night && <span className="ml-0.5 text-[10px] font-normal opacity-90">야간</span>}
+                          </button>
+                        ) : (
+                          <span key={s.start} title={label} className={`rounded border px-1 py-1.5 text-center text-xs ${cls}`}>
+                            {s.start}
+                            {night && <span className="ml-0.5 text-[10px] no-underline opacity-90">야간</span>}
+                            <span className="sr-only"> {selected ? "선택함" : slotLabel[s.state]}</span>
+                          </span>
+                        );
+                      })}
                     </div>
+                    <p className="mb-3 text-xs text-muted">초록색 시간을 누르면 시작 시각으로 정해집니다. 종료 시각은 아래에서 고릅니다.</p>
                     {startOptions.length === 0 ? (
                       <p className="text-sm text-muted">이날은 신청할 수 있는 시간이 없습니다.</p>
                     ) : (
@@ -247,7 +282,7 @@ export function BookingPicker({
                     )}
                     {end && toMin(end) > toMin(day.dayEnd) && (
                       <p className="mt-2 rounded bg-cream px-3 py-2 text-xs">
-                        야간({day.dayEnd} 이후)을 포함합니다. 신청서에 출입문 관리 담당자를 입력하고, 18:00 이전에 사용·철수 방법을 인계받아야 합니다.
+                        야간({day.dayEnd} 이후)을 포함합니다.
                       </p>
                     )}
                   </>

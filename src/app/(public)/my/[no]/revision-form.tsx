@@ -11,9 +11,6 @@ export interface RevisionInitial {
   eventTitle: string;
   eventPurpose: string;
   expectedHeadcount: number;
-  nightManagerName: string;
-  nightManagerPhone: string;
-  night: boolean;
   uploadToken: string;
   extensions: string[];
 }
@@ -68,12 +65,6 @@ export function RevisionForm({ action, initial }: { action: Action; initial: Rev
           {e.eventPurpose && <span className="text-xs font-normal text-danger">{e.eventPurpose}</span>}
         </label>
         {field("expectedHeadcount", "예상 인원", { type: "number", min: 1 })}
-        {initial.night && (
-          <>
-            {field("nightManagerName", "야간 출입문 관리 담당자")}
-            {field("nightManagerPhone", "담당자 연락처", { type: "tel" })}
-          </>
-        )}
       </div>
       <div className="flex flex-col gap-2 text-sm">
         <label className="btn-secondary cursor-pointer self-start">

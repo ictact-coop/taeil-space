@@ -71,7 +71,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
         spaceId: room.id, date, start: "10:00", end: "13:00", orgName: `단체${day}`, regType: "", regNo: "",
         contactName: "홍길동", contactPhone: "010-1234-5678", contactEmail: email, eventTitle: "토론회",
         eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.",
-        expectedHeadcount: "10", nightManagerName: "", nightManagerPhone: "", discountRuleId: "", optionKeys: [],
+        expectedHeadcount: "10", discountRuleId: "", optionKeys: [],
         consents: ["privacy", "operationRules", "refundRules"], uploadToken: newUploadToken(),
       },
       {},
@@ -169,12 +169,12 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     const req = await appOf(s.app.id);
     expect(req).toMatchObject({ status: "revision_requested", revisionMessage: "행사계획서를 첨부해 주세요." });
     expect(req.revisionDeadline?.toISOString()).toBe("2026-11-01T01:00:00.000Z"); // 기본 3일
-    const bad = await submitRevision(db, { applicationId: s.app.id, raw: { contactName: "홍길동", contactPhone: "010-1234-5678", eventTitle: "토론회", eventPurpose: "  ", expectedHeadcount: "0", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "" } });
+    const bad = await submitRevision(db, { applicationId: s.app.id, raw: { contactName: "홍길동", contactPhone: "010-1234-5678", eventTitle: "토론회", eventPurpose: "  ", expectedHeadcount: "0", uploadToken: newUploadToken(), note: "" } });
     // 정원 초과는 막지 않고(2026-10 결정), 빈 목적·0명은 막는다
     expect(bad).toMatchObject({ ok: false, fieldErrors: { eventPurpose: expect.any(String), expectedHeadcount: expect.any(String) } });
     const ok = await submitRevision(db, {
       applicationId: s.app.id,
-      raw: { contactName: "김담당", contactPhone: "010-9999-8888", eventTitle: "시민 토론회", eventPurpose: "보완: 노동 인권을 주제로 한 시민 토론회입니다. 발제 2개와 자유토론으로 진행합니다.", expectedHeadcount: "12", nightManagerName: "", nightManagerPhone: "", uploadToken: newUploadToken(), note: "첨부했습니다" },
+      raw: { contactName: "김담당", contactPhone: "010-9999-8888", eventTitle: "시민 토론회", eventPurpose: "보완: 노동 인권을 주제로 한 시민 토론회입니다. 발제 2개와 자유토론으로 진행합니다.", expectedHeadcount: "12", uploadToken: newUploadToken(), note: "첨부했습니다" },
     });
     expect(ok).toEqual({ ok: true });
     expect(await appOf(s.app.id)).toMatchObject({ status: "reviewing", contactName: "김담당", expectedHeadcount: 12, totalAmount: 60000 });

@@ -69,8 +69,6 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     eventTitle: "토론회",
     eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.",
     expectedHeadcount: "12",
-    nightManagerName: "",
-    nightManagerPhone: "",
     discountRuleId: "",
     optionKeys: [],
     consents: ["privacy", "operationRules", "refundRules"],
@@ -140,25 +138,25 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     expect(results.filter((r) => r.ok)).toHaveLength(1);
   });
 
-  it("공연장: 인원·규정 동의·야간 담당자를 확인한다 (AT-02, AT-05)", async () => {
+  it("공연장: 인원·규정 동의를 확인한다, 야간 출입문 담당자는 받지 않는다 (AT-02, AT-05)", async () => {
     const base = { spaceId: hall.id, date: "2026-11-20", start: "17:00", end: "20:00", expectedHeadcount: "30" };
     const r1 = await submitApplication(db, form(base), {}, now);
     expect(r1.ok).toBe(false);
     if (!r1.ok) {
       expect(r1.fieldErrors?.consents).toContain("야간 출입문 관리 규정");
       expect(r1.fieldErrors?.consents).toContain("공연장 이용 규정");
-      expect(r1.fieldErrors?.nightManagerName).toBeDefined();
+      expect(r1.fieldErrors?.nightManagerName).toBeUndefined();
     }
     const r2 = await submitApplication(
       db,
-      form({ ...base, expectedHeadcount: "10", nightManagerName: "김담당", nightManagerPhone: "010-2222-3333", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
+      form({ ...base, expectedHeadcount: "10", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
       {},
       now,
     );
     expect(r2).toMatchObject({ ok: false, violations: [{ code: "BR-08" }] });
     const r3 = await submitApplication(
       db,
-      form({ ...base, nightManagerName: "김담당", nightManagerPhone: "010-2222-3333", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
+      form({ ...base, consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
       {},
       now,
     );
@@ -166,7 +164,7 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     // 토·일요일은 야간 대관 불가(기본값)
     const sat = await submitApplication(
       db,
-      form({ ...base, date: "2026-11-21", nightManagerName: "김담당", nightManagerPhone: "010-2222-3333", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
+      form({ ...base, date: "2026-11-21", consents: ["privacy", "operationRules", "refundRules", "nightRules", "hallRules"] }),
       {},
       now,
     );

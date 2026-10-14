@@ -116,10 +116,6 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
     }
   }
   const night = input.endMinutes > ctx.hours.dayEnd;
-  if (night) {
-    if (!input.nightManagerName) fieldErrors.nightManagerName = "야간 대관은 출입문 관리 담당자를 입력해야 합니다.";
-    if (!/^0\d{8,10}$/.test(input.nightManagerPhone.replace(/[\s-]/g, ""))) fieldErrors.nightManagerPhone = "출입문 관리 담당자 연락처를 확인하세요.";
-  }
   const requiredConsents = requiredConsentsFor(space, night);
   const missing = missingConsents(requiredConsents, input.consents);
   if (missing) fieldErrors.consents = missing;
@@ -250,8 +246,6 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
           expectedHeadcount: input.expectedHeadcount,
           startsAt: kstDateTime(input.date, input.startMinutes),
           endsAt: kstDateTime(input.date, input.endMinutes),
-          nightManagerName: night ? input.nightManagerName : null,
-          nightManagerPhone: night ? input.nightManagerPhone : null,
           discountRuleId: discount?.id ?? null,
           optionKeys: input.optionKeys,
           priceSnapshot: price,

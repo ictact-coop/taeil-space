@@ -66,8 +66,6 @@ export async function submitRevisionAction(no: string, prev: RevisionState, form
       eventTitle: s("eventTitle"),
       eventPurpose: s("eventPurpose"),
       expectedHeadcount: s("expectedHeadcount"),
-      nightManagerName: s("nightManagerName"),
-      nightManagerPhone: s("nightManagerPhone"),
       uploadToken: s("uploadToken"),
       note: s("note"),
     },

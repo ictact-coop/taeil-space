@@ -11,11 +11,11 @@ interface CalendarDay {
 
 /** 이용자 달력 상태: 색과 문자를 함께 표시한다(NFR-02). 단체명은 보여 주지 않는다(USR-003). */
 export const dayStateInfo: Record<DayState, { label: string; className: string; selectable: boolean }> = {
-  available: { label: "예약가능", className: "bg-white border-status-green/50 text-ink hover:border-status-green", selectable: true },
-  partial: { label: "일부가능", className: "bg-white border-status-green/40 text-ink hover:border-status-green", selectable: true },
+  available: { label: "예약가능", className: "bg-status-green/15 border-status-green text-status-green font-semibold hover:bg-status-green/25", selectable: true },
+  partial: { label: "일부가능", className: "bg-status-green/5 border-status-green/70 border-dashed text-status-green font-semibold hover:bg-status-green/15", selectable: true },
   in_progress: { label: "신청진행", className: "bg-warning/10 border-transparent text-warning", selectable: false },
   booked: { label: "예약완료", className: "bg-navy/10 border-transparent text-navy", selectable: false },
-  unavailable: { label: "대관불가", className: "bg-cream-dark/50 border-transparent text-muted line-through decoration-muted/50", selectable: false },
+  unavailable: { label: "대관불가", className: "bg-cream-dark/40 border-transparent text-muted/60 line-through decoration-muted/50", selectable: false },
 };
 
 function shiftMonth(month: string, delta: number): string {

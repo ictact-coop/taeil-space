@@ -78,7 +78,6 @@ export default async function ApplicationFormPage({ searchParams }: { searchPara
           date: q.date,
           start: q.start!,
           end: q.end!,
-          night,
           options: (ctx.fee?.items.options ?? []).map((o) => ({ key: o.key, name: o.name, label: `${o.name} (${feeOptionUnitLabels[o.unit]} ${formatWon(o.fee)})` })),
           discounts: discounts.map((d) => ({ id: d.id, name: d.name, label: describeDiscount(d), proofRequired: d.proofRequired, proofGuide: d.proofGuide, description: d.description })),
           consents: Object.entries(consentList).map(([key, label]) => ({ key, label, text: texts[key] ?? "" })),
