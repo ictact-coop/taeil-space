@@ -35,6 +35,10 @@ export const NOTION_SPACE_CODES: Record<string, string> = {
   다목적홀: "hall",
   공연장: "hall",
 };
+/** 노션 공간 이름 → 시스템 공간 이름 (코드를 모르는 공간. 공백·문장부호는 무시하고 비교) */
+export const NOTION_SPACE_NAMES: Record<string, string> = {
+  기타공간: "라운지 숨:",
+};
 /** 이 범위를 벗어난 시각은 노션 입력 실수로 보고 건너뛴다(노션에서 고친 뒤 다시 실행) */
 const EARLIEST = 7 * 60;
 const LATEST = 23 * 60;
@@ -95,6 +99,8 @@ const propRelation = (p: NotionProperty | undefined) => (p?.type === "relation" 
 const propMulti = (p: NotionProperty | undefined) => (p?.type === "multi_select" ? (p as { multi_select: { name: string }[] }).multi_select.map((o) => o.name) : []);
 const hasTime = (iso: string | null | undefined): boolean => Boolean(iso && iso.length > 10);
 const compact = (s: string) => s.replace(/\s+/g, "");
+/** 공간 이름 비교용: 글자·숫자만 남긴다("라운지 숨:" → "라운지숨") */
+const nameKey = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, "");
 
 /** '20명 내외', '10~15 명', '50여명' → 가장 큰 숫자. 없으면 1 */
 export function parseHeadcount(raw: string): number {
@@ -147,6 +153,8 @@ export function findSpace(notionName: string, appSpaces: readonly AppSpace[]): A
   const n = compact(notionName);
   if (!n) return null;
   const code = NOTION_SPACE_CODES[n];
+  const alias = NOTION_SPACE_NAMES[n];
+  if (alias) return appSpaces.find((s) => nameKey(s.name) === nameKey(alias)) ?? null;
   return appSpaces.find((s) => s.code === code) ?? appSpaces.find((s) => compact(s.name) === n || compact(s.name).includes(n)) ?? null;
 }
 
@@ -196,7 +204,10 @@ export function mapNotionPage(
   const matched: AppSpace[] = [];
   for (const name of spaceNames) {
     const space = findSpace(name, appSpaces);
-    if (!space) return skip(`시스템에 없는 공간: '${name || "(이름 없음)"}'`);
+    if (!space) {
+      const alias = NOTION_SPACE_NAMES[compact(name)];
+      return skip(alias ? `시스템에 '${alias}' 공간이 없음(노션 '${name}')` : `시스템에 없는 공간: '${name || "(이름 없음)"}'`);
+    }
     if (!matched.some((m) => m.id === space.id)) matched.push(space);
   }
 

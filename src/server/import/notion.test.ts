@@ -53,7 +53,7 @@ describe("노션 대관 신청 → 시스템 신청", () => {
     expect(reason({ id: "3", title: "x", start: "2026-10-24T09:00:00Z", end: "2026-10-24T00:00:00Z" })).toContain("이르거나");
     expect(reason({ id: "4", title: "x", start: "2026-10-17T05:00:00Z", end: "2026-07-31T04:00:00Z" })).toContain("다른 날");
     expect(reason({ id: "5", title: "x", start: "2026-10-20T13:00:00Z", end: "2026-10-20T14:30:00Z" })).toContain("07:00~23:00");
-    expect(reason({ id: "6", title: "x", start: "2026-10-20T05:00:00Z", end: "2026-10-20T06:00:00Z", spaces: ["sp-etc"] })).toContain("기타공간");
+    expect(reason({ id: "6", title: "x", start: "2026-10-20T05:00:00Z", end: "2026-10-20T06:00:00Z", spaces: ["sp-etc"] })).toContain("'라운지 숨:' 공간이 없음");
     expect(reason({ id: "7", title: "x", start: "2026-10-20T05:00:00Z", end: "2026-10-20T06:00:00Z", spaces: [] })).toContain("비어");
   });
 
@@ -83,6 +83,13 @@ describe("노션 대관 신청 → 시스템 신청", () => {
     expect(guessRegNo("무")).toBeNull();
     expect(findSpace("회의실 1", appSpaces)?.code).toBe("meeting1");
     expect(findSpace("다목적홀", appSpaces)?.code).toBe("hall");
+    // 노션 '기타공간'은 시스템의 '라운지 숨:' 공간으로 (공백·문장부호 무시). 그 공간이 없으면 건너뛴다
     expect(findSpace("기타공간", appSpaces)).toBeNull();
+    const withLounge = [...appSpaces, { id: "s6", code: "lounge", name: "라운지 숨:" }];
+    expect(findSpace("기타공간", withLounge)?.code).toBe("lounge");
+    expect(findSpace("기타 공간", [...appSpaces, { id: "s7", code: "x", name: "라운지숨" }])?.code).toBe("x");
+    expect(findSpace("세미나실", withLounge)?.code).toBe("seminar");
+    const r = mapNotionPage(notionPage({ id: "etc", title: "x", start: "2026-10-20T05:00:00Z", end: "2026-10-20T06:00:00Z", spaces: ["sp-etc"] }), notionLookups, withLounge, opts);
+    expect(r.ok && r.items.map((i) => i.spaceId)).toEqual(["s6"]);
   });
 });
