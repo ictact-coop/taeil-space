@@ -400,6 +400,8 @@ export const applications = pgTable(
      * 가져온 입금 대기 신청은 자동 취소·입금 기한 알림을 하지 않는다(담당자가 직접 처리).
      */
     importRef: text("import_ref").unique(),
+    /** 나의 대관 비밀번호(argon2id). 전화번호와 함께 신청 내역을 볼 때 쓴다 */
+    applicantPasswordHash: text("applicant_password_hash"),
     /** 현금영수증·세금계산서 발행 희망(선택). 모양은 src/domain/booking/receipt.ts */
     receiptRequest: jsonb("receipt_request").$type<import("@/domain/booking/receipt").ReceiptRequest>(),
     ...timestamps,
@@ -658,7 +660,12 @@ export const applicantOtps = pgTable(
 export const applicantSessions = pgTable("applicant_sessions", {
   /** 세션 토큰의 SHA-256 */
   id: text("id").primaryKey(),
-  email: text("email").notNull(),
+  /** 이메일 확인 코드로 들어온 경우: 그 이메일로 된 신청 전체 */
+  email: text("email"),
+  /** 전화번호·비밀번호로 들어온 경우: 비밀번호가 맞은 신청들 */
+  applicationIds: jsonb("application_ids").$type<string[]>(),
+  /** 화면 표시용(이메일 또는 가린 전화번호) */
+  label: text("label").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });

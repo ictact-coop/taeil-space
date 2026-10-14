@@ -113,6 +113,13 @@
       "when": 1791985110225,
       "tag": "0015_application_receipt_request",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792019693427,
+      "tag": "0016_applicant_password",
+      "breakpoints": true
     }
   ]
 }

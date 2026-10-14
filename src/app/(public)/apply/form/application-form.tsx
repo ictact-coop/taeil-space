@@ -180,20 +180,26 @@ function Body({
         <fieldset className="grid gap-4 rounded-lg border border-line bg-white p-5 sm:grid-cols-2">
           <legend className="px-1 font-semibold text-navy">신청자 정보</legend>
           <Field label="단체명 *" name="orgName" error={e.orgName}>
-            {input("orgName", { autoComplete: "organization", placeholder: "단체명을 입력하세요" })}
+            {input("orgName", { required: true, autoComplete: "organization", placeholder: "단체명을 입력하세요" })}
           </Field>
           <Field label="담당자 *" name="contactName" error={e.contactName}>
-            {input("contactName", { autoComplete: "name", placeholder: "이름" })}
+            {input("contactName", { required: true, autoComplete: "name", placeholder: "이름" })}
           </Field>
           <Field label="휴대전화 *" name="contactPhone" error={e.contactPhone}>
-            {input("contactPhone", { type: "tel", autoComplete: "tel", placeholder: "010-0000-0000", inputMode: "tel" })}
+            {input("contactPhone", { required: true, type: "tel", autoComplete: "tel", placeholder: "010-0000-0000", inputMode: "tel" })}
           </Field>
           <Field label="이메일 *" name="contactEmail" error={e.contactEmail}>
-            {input("contactEmail", { type: "email", autoComplete: "email", placeholder: "name@example.org" })}
+            {input("contactEmail", { required: true, type: "email", autoComplete: "email", placeholder: "name@example.org" })}
+          </Field>
+          <Field label="나의 대관 비밀번호 *" name="applicantPassword" error={e.applicantPassword} hint="휴대전화 번호와 이 비밀번호로 '나의 대관'에서 신청 내역을 봅니다. 4자 이상.">
+            <input id="f-applicantPassword" name="applicantPassword" type="password" required minLength={4} maxLength={50} autoComplete="new-password" aria-invalid={Boolean(e.applicantPassword) || undefined} className="input" />
+          </Field>
+          <Field label="비밀번호 확인 *" name="applicantPasswordConfirm">
+            <input id="f-applicantPasswordConfirm" name="applicantPasswordConfirm" type="password" required minLength={4} maxLength={50} autoComplete="new-password" className="input" />
           </Field>
           <div className="grid gap-3 sm:col-span-2 sm:grid-cols-[180px_1fr]">
             <Field label={`번호 종류${props.regNoRequired ? " *" : ""}`} name="regType" error={e.regType}>
-              <select id="f-regType" name="regType" defaultValue={str(v, "regType", "")} className="input">
+              <select id="f-regType" name="regType" required={props.regNoRequired} defaultValue={str(v, "regType", "")} className="input">
                 <option value="">{props.regNoRequired ? "선택" : "없음"}</option>
                 <option value="unique_no">고유번호</option>
                 <option value="business_no">사업자등록번호</option>
@@ -205,7 +211,7 @@ function Body({
               error={e.regNo}
               hint="같은 단체의 하루 1건·6개월 이용 횟수 확인에 씁니다."
             >
-              {input("regNo", { placeholder: "123-45-67890", inputMode: "numeric" })}
+              {input("regNo", { required: props.regNoRequired, placeholder: "123-45-67890", inputMode: "numeric" })}
             </Field>
           </div>
         </fieldset>
@@ -214,7 +220,7 @@ function Body({
           <legend className="px-1 font-semibold text-navy">행사 정보</legend>
           <div className="sm:col-span-2">
             <Field label="행사명 *" name="eventTitle" error={e.eventTitle}>
-              {input("eventTitle", { placeholder: "행사명을 입력하세요" })}
+              {input("eventTitle", { required: true, placeholder: "행사명을 입력하세요" })}
             </Field>
           </div>
           <div className="sm:col-span-2">
@@ -222,6 +228,7 @@ function Body({
               <textarea
                 id="f-eventPurpose"
                 name="eventPurpose"
+                required
                 rows={4}
                 defaultValue={str(v, "eventPurpose", "")}
                 aria-invalid={Boolean(e.eventPurpose) || undefined}
@@ -239,6 +246,7 @@ function Body({
             <input
               id="f-expectedHeadcount"
               name="expectedHeadcount"
+              required
               type="number"
               min={1}
               inputMode="numeric"
@@ -318,23 +326,23 @@ function Body({
                 </div>
               </div>
               <Field label={cashPurpose === "income" ? "휴대전화 번호 *" : "사업자등록번호 *"} name="cashNumber" error={e.cashNumber}>
-                {input("cashNumber", { inputMode: "numeric", placeholder: cashPurpose === "income" ? "010-0000-0000" : "000-00-00000" })}
+                {input("cashNumber", { required: true, inputMode: "numeric", placeholder: cashPurpose === "income" ? "010-0000-0000" : "000-00-00000" })}
               </Field>
             </>
           )}
           {receiptType === "tax_invoice" && (
             <>
               <Field label="사업자등록번호 *" name="taxBizNo" error={e.taxBizNo}>
-                {input("taxBizNo", { inputMode: "numeric", placeholder: "000-00-00000" })}
+                {input("taxBizNo", { required: true, inputMode: "numeric", placeholder: "000-00-00000" })}
               </Field>
               <Field label="상호(법인명) *" name="taxCompany" error={e.taxCompany}>
-                {input("taxCompany")}
+                {input("taxCompany", { required: true })}
               </Field>
               <Field label="대표자 *" name="taxCeo" error={e.taxCeo}>
-                {input("taxCeo")}
+                {input("taxCeo", { required: true })}
               </Field>
               <Field label="받을 이메일 *" name="taxEmail" error={e.taxEmail}>
-                {input("taxEmail", { type: "email", inputMode: "email" })}
+                {input("taxEmail", { required: true, type: "email", inputMode: "email" })}
               </Field>
               <div className="sm:col-span-2">
                 <Field label="사업장 주소" name="taxAddress" error={e.taxAddress}>
@@ -395,7 +403,7 @@ function Body({
           {props.consents.map((c) => (
             <div key={c.key} className="rounded border border-line">
               <label className="flex items-center gap-3 px-3 py-2 text-sm font-medium">
-                <input type="checkbox" name="consents" value={c.key} defaultChecked={consents.includes(c.key)} className="size-4" />
+                <input type="checkbox" name="consents" value={c.key} defaultChecked={consents.includes(c.key)} required className="size-4" />
                 {c.label}에 동의합니다.
               </label>
               <details className="border-t border-line px-3 py-2 text-xs">

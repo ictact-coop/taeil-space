@@ -4,7 +4,8 @@ import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
-import { getApplicationForApplicant } from "@/server/booking/access";
+import { getApplicantPrincipal, loginWithPhone } from "@/server/applicant/auth";
+import { getApplicationForApplicant, listApplicationsForPrincipal } from "@/server/booking/access";
 import { newUploadToken, uploadAttachment } from "@/server/booking/attachments";
 import { getDayAvailability, getMonthCalendar } from "@/server/booking/availability";
 import { expirePendingApplications } from "@/server/booking/expire";
@@ -73,6 +74,8 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     optionKeys: [],
     consents: ["privacy", "operationRules", "refundRules"],
     uploadToken: newUploadToken(),
+    applicantPassword: "1234",
+    applicantPasswordConfirm: "1234",
     ...over,
   });
 
@@ -145,6 +148,35 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     await db.delete(payments).where(eq(payments.applicationId, app!.id));
     await db.delete(notificationLogs).where(eq(notificationLogs.applicationId, app!.id));
     await db.delete(applications).where(eq(applications.id, app!.id));
+  });
+
+  it("나의 대관: 비밀번호는 필수, 전화번호+비밀번호로 그 비밀번호가 맞는 신청만 본다", async () => {
+    const noPw = await submitApplication(db, form({ date: "2026-11-25", applicantPassword: "", applicantPasswordConfirm: "" }), {}, now);
+    expect(noPw).toMatchObject({ ok: false, fieldErrors: { applicantPassword: expect.any(String) } });
+    const mismatch = await submitApplication(db, form({ date: "2026-11-25", applicantPassword: "1234", applicantPasswordConfirm: "1235" }), {}, now);
+    expect(mismatch).toMatchObject({ ok: false, fieldErrors: { applicantPassword: expect.stringContaining("일치") } });
+
+    const a = await submitApplication(db, form({ date: "2026-11-25", orgName: "갑모임", contactPhone: "010-7777-8888", applicantPassword: "pw-a1", applicantPasswordConfirm: "pw-a1" }), {}, now);
+    const b = await submitApplication(db, form({ date: "2026-11-26", orgName: "을모임", contactPhone: "010-7777-8888", applicantPassword: "pw-b2", applicantPasswordConfirm: "pw-b2" }), {}, now);
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    expect(await loginWithPhone(db, "010-7777-8888", "틀림", now)).toMatchObject({ ok: false });
+    expect(await loginWithPhone(db, "010-0000-0000", "pw-a1", now)).toMatchObject({ ok: false });
+    const login = await loginWithPhone(db, "010 7777 8888", "pw-a1", now);
+    expect(login.ok).toBe(true);
+    if (!login.ok) return;
+    const me = await getApplicantPrincipal(db, login.token, now);
+    expect(me).toMatchObject({ email: null, label: "010-****-8888" });
+    const list = await listApplicationsForPrincipal(db, me!);
+    expect(list.map((r) => r.application.applicationNo)).toEqual([a.applicationNo]);
+    expect(await getApplicationForApplicant(db, a.applicationNo, undefined, me)).not.toBeNull();
+    expect(await getApplicationForApplicant(db, b.applicationNo, undefined, me)).toBeNull();
+    for (const no of [a.applicationNo, b.applicationNo]) {
+      const [row] = await db.select().from(applications).where(eq(applications.applicationNo, no));
+      await db.delete(payments).where(eq(payments.applicationId, row!.id));
+      await db.delete(notificationLogs).where(eq(notificationLogs.applicationId, row!.id));
+      await db.delete(applications).where(eq(applications.id, row!.id));
+    }
   });
 
   it("빈 신청서를 내면 기본 입력 오류와 동의 누락을 한 번에 알려 준다", async () => {

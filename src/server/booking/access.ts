@@ -1,21 +1,24 @@
-import { and, asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { applicationStatusHistory, applications, attachments, payments, refunds, slotOccupancies, spaces } from "@/server/db/schema";
 import type { DbOrTx } from "@/server/db/types";
 import { hashToken } from "./attachments";
 
 /**
- * 신청자가 자기 신청을 볼 수 있는지: 신청 직후 쿠키의 접근 토큰, 또는 나의 대관 이메일 확인 세션.
+ * 신청자가 자기 신청을 볼 수 있는지: 신청 직후 쿠키의 접근 토큰, 또는 나의 대관 세션(이메일 확인 / 전화번호·비밀번호).
  */
 export async function getApplicationForApplicant(
   db: DbOrTx,
   applicationNo: string,
   token: string | undefined,
-  email: string | null = null,
+  principal: { email: string | null; applicationIds: string[] | null } | null = null,
 ) {
-  if ((!token && !email) || !/^R\d{6}-\d{5}$/.test(applicationNo)) return null;
+  const email = principal?.email ?? null;
+  const ids = principal?.applicationIds ?? [];
+  if ((!token && !email && ids.length === 0) || !/^R\d{6}-\d{5}$/.test(applicationNo)) return null;
   const access = [
     ...(token ? [eq(applications.accessTokenHash, hashToken(token))] : []),
     ...(email ? [eq(applications.contactEmail, email)] : []),
+    ...(ids.length ? [inArray(applications.id, ids)] : []),
   ];
   const [row] = await db
     .select({ application: applications, spaceName: spaces.name, spaceCapacity: spaces.capacity, spaceMinHeadcount: spaces.minHeadcount, spaceApprovalNotice: spaces.approvalNotice })
@@ -38,11 +41,15 @@ export async function getApplicationForApplicant(
   return { ...row, payment: payment ?? null, files, history, refunds: refundRows, holdExpiresAt: hold?.expiresAt ?? null };
 }
 
-export function listApplicationsByEmail(db: DbOrTx, email: string) {
+export function listApplicationsForPrincipal(db: DbOrTx, principal: { email: string | null; applicationIds: string[] | null }) {
+  const conds = [
+    ...(principal.email ? [eq(applications.contactEmail, principal.email)] : []),
+    ...(principal.applicationIds?.length ? [inArray(applications.id, principal.applicationIds)] : []),
+  ];
   return db
     .select({ application: applications, spaceName: spaces.name })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
-    .where(eq(applications.contactEmail, email))
+    .where(conds.length ? or(...conds) : sql`false`)
     .orderBy(desc(applications.createdAt));
 }

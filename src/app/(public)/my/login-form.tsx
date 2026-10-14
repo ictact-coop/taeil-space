@@ -1,9 +1,63 @@
 "use client";
 
-import { useActionState } from "react";
-import { requestCodeAction, verifyCodeAction, type LoginState } from "./actions";
+import { useActionState, useState } from "react";
+import { phoneLoginAction, requestCodeAction, verifyCodeAction, type LoginState, type PhoneLoginState } from "./actions";
 
+/** 나의 대관 로그인: 전화번호 + 신청 때 정한 비밀번호(기본), 또는 이메일 확인 코드 */
 export function LoginForm() {
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 rounded-lg bg-cream p-1 text-sm font-semibold" role="tablist" aria-label="확인 방법">
+        {(
+          [
+            ["phone", "전화번호·비밀번호"],
+            ["email", "이메일 확인 코드"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={mode === key}
+            onClick={() => setMode(key)}
+            className={`rounded-md px-3 py-2 ${mode === key ? "bg-white text-navy shadow-sm" : "text-muted hover:text-navy"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === "phone" ? <PhoneLoginForm /> : <EmailLoginForm />}
+    </div>
+  );
+}
+
+function PhoneLoginForm() {
+  const [state, login, pending] = useActionState(phoneLoginAction, {} as PhoneLoginState);
+  return (
+    <form action={login} className="flex flex-col gap-3">
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        신청할 때 적은 휴대전화 번호
+        <input name="phone" type="tel" inputMode="tel" required autoComplete="tel" placeholder="010-0000-0000" defaultValue={state.phone ?? ""} className="input" />
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        신청할 때 정한 비밀번호
+        <input name="password" type="password" required autoComplete="current-password" className="input" />
+      </label>
+      {state.error && (
+        <p role="alert" className="text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      <button type="submit" className="btn-primary" disabled={pending}>
+        신청 내역 보기
+      </button>
+      <p className="text-xs text-muted">비밀번호가 기억나지 않으면 이메일 확인 코드로 들어오거나 기념관(02-318-0903)으로 문의해 주세요.</p>
+    </form>
+  );
+}
+
+function EmailLoginForm() {
   const [emailState, requestCode, requesting] = useActionState(requestCodeAction, { step: "email" } as LoginState);
   const [codeState, verify, verifying] = useActionState(verifyCodeAction, { step: "code" } as LoginState);
   const email = codeState.email ?? emailState.email ?? "";
@@ -45,7 +99,6 @@ export function LoginForm() {
           </button>
         </form>
       )}
-      <p className="text-xs text-muted">휴대전화 번호로 확인하는 방법은 문자 발송 연결 후 제공됩니다.</p>
     </div>
   );
 }
