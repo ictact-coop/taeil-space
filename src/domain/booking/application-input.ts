@@ -57,5 +57,7 @@ export function applicationInputFromForm(form: FormData): Record<string, unknown
     consents: form.getAll("consents").map(String),
     uploadToken: s("uploadToken"),
     ...receiptRawFromForm(form),
+    applicantPassword: String(form.get("applicantPassword") ?? ""),
+    applicantPasswordConfirm: String(form.get("applicantPasswordConfirm") ?? ""),
   };
 }

@@ -4,7 +4,7 @@ import path from "node:path";
 import { and, desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
-import { getApplicantEmail, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
+import { getApplicantPrincipal, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
 import { expireRevisions, submitRevision, withdrawApplication } from "@/server/applications/applicant-actions";
 import { approveApplication, confirmDeposit, rejectApplication, requestRevision, reviewChecks, startReview } from "@/server/applications/review";
 import { PermissionError } from "@/server/auth/permissions";
@@ -72,7 +72,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
         contactName: "홍길동", contactPhone: "010-1234-5678", contactEmail: email, eventTitle: "토론회",
         eventPurpose: "노동 인권을 주제로 한 시민 토론회를 엽니다. 발제와 자유토론으로 진행합니다.",
         expectedHeadcount: "10", discountRuleId: "", optionKeys: [],
-        consents: ["privacy", "operationRules", "refundRules"], uploadToken: newUploadToken(),
+        consents: ["privacy", "operationRules", "refundRules"], uploadToken: newUploadToken(), applicantPassword: "1234", applicantPasswordConfirm: "1234",
       },
       {},
       at,
@@ -326,7 +326,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     const ok = await verifyLoginCode(db, "me@example.org", code!, now);
     expect(ok.ok).toBe(true);
     if (!ok.ok) return;
-    expect(await getApplicantEmail(db, ok.token, now)).toBe("me@example.org");
+    expect((await getApplicantPrincipal(db, ok.token, now))?.email).toBe("me@example.org");
     expect(await verifyLoginCode(db, "me@example.org", code!, now)).toMatchObject({ ok: false }); // 한 번만 사용
     for (let i = 0; i < 4; i += 1) expect(await requestLoginCode(db, "me@example.org", now)).toEqual({ ok: true }); // 2~5번째
     expect(await requestLoginCode(db, "me@example.org", now)).toMatchObject({ ok: false }); // 시간당 5회 초과

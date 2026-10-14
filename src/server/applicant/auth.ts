@@ -2,10 +2,11 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { applicantOtps, applicantSessions, applications } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
+import { burnPasswordCheck, verifyPassword } from "@/server/auth/password";
 import { enqueueEmail, flushNotifications } from "@/server/notifications/queue";
 
 /**
- * 나의 대관 본인 확인 ([요구] 3장: 이메일 인증으로 내역 조회). 휴대전화 인증은 문자 발송(단계 5)과 함께 붙인다.
+ * 나의 대관 본인 확인. 주로 전화번호 + 신청할 때 정한 비밀번호(2026-10 결정), 또는 이메일 확인 코드([요구] 3장).
  * 계정 존재 여부가 드러나지 않도록, 신청 내역이 없는 이메일에도 같은 안내를 보여 준다(코드는 보내지 않음).
  */
 const CODE_TTL_MS = 10 * 60_000;
@@ -69,16 +70,65 @@ export async function verifyLoginCode(db: Db, rawEmail: string, code: string, no
     await tx.update(applicantOtps).set({ consumedAt: now }).where(eq(applicantOtps.id, otp.id));
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(now.getTime() + SESSION_HOURS * 3600_000);
-    await tx.insert(applicantSessions).values({ id: sha(token), email, createdAt: now, expiresAt });
+    await tx.insert(applicantSessions).values({ id: sha(token), email, label: email, createdAt: now, expiresAt });
     return { ok: true, token, expiresAt } as const;
   });
 }
 
-export async function getApplicantEmail(db: DbOrTx, token: string | undefined, now: Date = new Date()): Promise<string | null> {
+/** 나의 대관 로그인 주체: 이메일(그 이메일의 신청 전체) 또는 전화번호·비밀번호로 확인한 신청 목록 */
+export interface ApplicantPrincipal {
+  email: string | null;
+  applicationIds: string[] | null;
+  label: string;
+}
+
+export async function getApplicantPrincipal(db: DbOrTx, token: string | undefined, now: Date = new Date()): Promise<ApplicantPrincipal | null> {
   if (!token) return null;
   const [row] = await db.select().from(applicantSessions).where(and(eq(applicantSessions.id, sha(token)), gt(applicantSessions.expiresAt, now)));
-  return row?.email ?? null;
+  if (!row || (!row.email && !row.applicationIds?.length)) return null;
+  return { email: row.email, applicationIds: row.applicationIds, label: row.label || row.email || "" };
 }
+
+export const normalizePhone = (raw: string) => raw.replace(/[\s-]/g, "");
+const maskPhone = (digits: string) => digits.replace(/^(\d{3})(\d{3,4})(\d{4})$/, (_, a: string, b: string, c: string) => `${a}-${"*".repeat(b.length)}-${c}`);
+
+export const MIN_APPLICANT_PASSWORD = 4;
+export const MAX_APPLICANT_PASSWORD = 50;
+
+export type PhoneLoginResult = { ok: true; token: string; expiresAt: Date } | { ok: false; error: string };
+
+/**
+ * 전화번호 + 신청할 때 정한 비밀번호로 확인. 그 전화번호로 된 신청 중 비밀번호가 맞는 신청만 볼 수 있다.
+ * 맞는 신청이 없으면 전화번호가 없는지 비밀번호가 틀렸는지 구분하지 않고 같은 안내를 한다.
+ */
+export async function loginWithPhone(db: Db, rawPhone: string, password: string, now: Date = new Date()): Promise<PhoneLoginResult> {
+  const phone = normalizePhone(rawPhone);
+  const invalid = { ok: false, error: "전화번호 또는 비밀번호가 맞지 않습니다." } as const;
+  if (!/^0\d{8,10}$/.test(phone) || !password) return invalid;
+  const rows = await db
+    .select({ id: applications.id, hash: applications.applicantPasswordHash })
+    .from(applications)
+    .where(eq(applications.contactPhone, phone));
+  const matched: string[] = [];
+  for (const r of rows.slice(0, 200)) {
+    if (r.hash && (await verifyPassword(r.hash, password))) matched.push(r.id);
+  }
+  if (rows.length === 0) await burnPasswordCheck(password);
+  if (matched.length === 0) return invalid;
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(now.getTime() + SESSION_HOURS * 3600_000);
+  await db.insert(applicantSessions).values({ id: sha(token), email: null, applicationIds: matched, label: maskPhone(phone), createdAt: now, expiresAt });
+  return { ok: true, token, expiresAt };
+}
+
+/** 신청서의 나의 대관 비밀번호 확인·해시 */
+export function validateApplicantPassword(password: string, confirm: string): string | null {
+  if (password.length < MIN_APPLICANT_PASSWORD) return `비밀번호는 ${MIN_APPLICANT_PASSWORD}자 이상으로 정하세요.`;
+  if (password.length > MAX_APPLICANT_PASSWORD) return `비밀번호는 ${MAX_APPLICANT_PASSWORD}자 이하로 정하세요.`;
+  if (password !== confirm) return "비밀번호 확인이 일치하지 않습니다.";
+  return null;
+}
+export { hashPassword as hashApplicantPassword } from "@/server/auth/password";
 
 export async function endApplicantSession(db: DbOrTx, token: string | undefined): Promise<void> {
   if (token) await db.delete(applicantSessions).where(eq(applicantSessions.id, sha(token)));

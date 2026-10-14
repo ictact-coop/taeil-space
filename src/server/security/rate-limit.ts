@@ -35,6 +35,8 @@ export const limits = {
   quote: { limit: 300, windowSeconds: 600 },
   otpRequest: { limit: 20, windowSeconds: 3600 },
   otpVerify: { limit: 30, windowSeconds: 3600 },
+  /** 나의 대관: 전화번호·비밀번호 확인(비밀번호 맞히기 시도 막기) */
+  applicantLogin: { limit: 20, windowSeconds: 900 },
   adminLogin: { limit: 30, windowSeconds: 900 },
   /** 관리자 아이디 찾기·비밀번호 재설정 요청과 재설정 링크 사용 */
   adminRecovery: { limit: 10, windowSeconds: 3600 },

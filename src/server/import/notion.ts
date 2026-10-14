@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { normalizeRegNo, isValidBusinessNoChecksum, type RegType } from "@/domain/organization/reg-no";
 import { calculatePrice } from "@/domain/pricing/calculate";
 import { kstDateOf, toKstLocalInput } from "@/lib/time";
+import { hashPassword } from "@/server/auth/password";
 import { toMinutes } from "@/domain/booking/time";
 import { pgErrorCode } from "@/server/actor";
 import { writeAudit } from "@/server/audit/log";
@@ -267,6 +268,7 @@ export async function importNotionBookings(
 ): Promise<ImportReport> {
   const now = opts.now ?? new Date();
   const statuses = opts.statuses ?? DEFAULT_IMPORT_STATUSES;
+  const initialPasswordHash = hashPassword("0000");
   const report: ImportReport = { applied: opts.apply, fetched: pages.length, created: [], existing: [], skipped: [], conflicts: [], ignored: 0 };
   const spaceRows = await db.select().from(spaces);
 
@@ -337,6 +339,8 @@ export async function importNotionBookings(
                 totalAmount: amount,
                 submittedAt: c.submittedAt,
                 importRef: c.ref,
+                // 노션에서 가져온 신청도 나의 대관 비밀번호는 0000(전화번호 + 0000으로 확인)
+                applicantPasswordHash: await initialPasswordHash,
                 createdAt: now,
                 updatedAt: now,
               })

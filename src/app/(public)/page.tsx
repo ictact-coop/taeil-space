@@ -92,8 +92,6 @@ export default async function GuidePage() {
                   </dd>
                 </>
               )}
-              <dt className="text-muted">신청 기한</dt>
-              <dd>공간별로 다릅니다(보통 이용일 2주 전까지). 교육실은 공개된 접수기간 안에서만 신청합니다.</dd>
               <dt className="text-muted">휴관일</dt>
               <dd>달력에서 선택할 수 없는 날로 표시됩니다.</dd>
             </dl>
@@ -103,7 +101,10 @@ export default async function GuidePage() {
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm">
               <li>심사에서 반려되면 {word} 금액 전액을 환불합니다.</li>
               <li>승인 전에 신청을 철회하면 {s["payment.withdrawRefundPercent"]}%를 환불합니다.</li>
-              <li>예약확정 후 취소: {describeRefundTiers(s["payment.refundTiers"])}</li>
+              <li>
+                예약 확정 후 환불 요청이 정당하다고 인정되는 경우(당일 취소 불가)
+                {s["payment.refundTiers"].length > 0 && `: ${describeRefundTiers(s["payment.refundTiers"])}`}
+              </li>
               <li>기념관 사정으로 취소되면 전액 환불합니다.</li>
             </ul>
           </div>

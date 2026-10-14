@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { withNotice } from "@/lib/url";
-import { endApplicantSession, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
+import { endApplicantSession, loginWithPhone, requestLoginCode, verifyLoginCode } from "@/server/applicant/auth";
 import { getApplicantView } from "@/server/applicant/current";
 import { submitRevision, withdrawApplication } from "@/server/applications/applicant-actions";
 import { clearApplicantSessionCookie, getApplicantSessionCookie, setApplicantSessionCookie } from "@/server/booking/applicant-cookie";
@@ -30,6 +30,20 @@ export async function verifyCodeAction(prev: LoginState, form: FormData): Promis
   if (!(await throttle("otpVerify"))) return { step: "code", email, error: TOO_MANY_REQUESTS };
   const r = await verifyLoginCode(db, email, String(form.get("code") ?? ""));
   if (!r.ok) return { step: "code", email, error: r.error };
+  await setApplicantSessionCookie(r.token, r.expiresAt);
+  redirect("/my");
+}
+
+export interface PhoneLoginState {
+  phone?: string;
+  error?: string;
+}
+
+export async function phoneLoginAction(_prev: PhoneLoginState, form: FormData): Promise<PhoneLoginState> {
+  const phone = String(form.get("phone") ?? "");
+  if (!(await throttle("applicantLogin"))) return { phone, error: TOO_MANY_REQUESTS };
+  const r = await loginWithPhone(db, phone, String(form.get("password") ?? ""));
+  if (!r.ok) return { phone, error: r.error };
   await setApplicantSessionCookie(r.token, r.expiresAt);
   redirect("/my");
 }

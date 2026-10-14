@@ -11,9 +11,17 @@ export function SubmitConfirm({ notices, label, disabled }: { notices: string[];
   const [checked, setChecked] = useState(false);
   const titleId = useId();
 
+  /** 필수 항목(동의 체크 포함)이 비어 있으면 팝업을 열거나 제출하지 않고 그 칸을 알려 준다 */
+  const formIsReady = (button: HTMLButtonElement) => {
+    const form = button.form;
+    if (!form || form.checkValidity()) return true;
+    form.reportValidity();
+    return false;
+  };
+
   if (notices.length === 0) {
     return (
-      <button type="submit" className="btn-primary mt-4 w-full" disabled={disabled}>
+      <button type="submit" className="btn-primary mt-4 w-full" disabled={disabled} onClick={(e) => !formIsReady(e.currentTarget) && e.preventDefault()}>
         {label}
       </button>
     );
@@ -24,7 +32,7 @@ export function SubmitConfirm({ notices, label, disabled }: { notices: string[];
   };
   return (
     <>
-      <button type="button" className="btn-primary mt-4 w-full" disabled={disabled} onClick={() => dialog.current?.showModal()}>
+      <button type="button" className="btn-primary mt-4 w-full" disabled={disabled} onClick={(e) => formIsReady(e.currentTarget) && dialog.current?.showModal()}>
         {label}
       </button>
       <dialog

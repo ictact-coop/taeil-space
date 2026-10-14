@@ -6,6 +6,7 @@ import { calculatePrice } from "@/domain/pricing/calculate";
 import { kstDateTime, toMinutes } from "@/domain/booking/time";
 import { validateRegNo } from "@/domain/organization/reg-no";
 import { parseReceiptRequest, type ReceiptField } from "@/domain/booking/receipt";
+import { hashApplicantPassword, validateApplicantPassword } from "@/server/applicant/auth";
 import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
@@ -96,6 +97,8 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
       const missing = missingConsents(requiredConsentsFor(space, end > dayEnd), consents);
       if (missing) fieldErrors.consents ??= missing;
     }
+    const pw = validateApplicantPassword(String(raw.applicantPassword ?? ""), String(raw.applicantPasswordConfirm ?? ""));
+    if (pw) fieldErrors.applicantPassword ??= pw;
     return { ok: false, formError: "입력값을 확인하세요.", fieldErrors };
   }
   const input: ApplicationInput = parsed.data;
@@ -105,6 +108,10 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
   const ctx = await loadBookingContext(db, space, now);
   const s = ctx.settings;
   const fieldErrors: Partial<Record<string, string>> = {};
+
+  // 나의 대관 비밀번호(필수, 전화번호와 함께 내역 조회에 쓴다)
+  const passwordError = validateApplicantPassword(String(raw.applicantPassword ?? ""), String(raw.applicantPasswordConfirm ?? ""));
+  if (passwordError) fieldErrors.applicantPassword = passwordError;
 
   // 증빙 발행 희망(선택)
   const receipt = parseReceiptRequest(raw as Partial<Record<ReceiptField, string>>);
@@ -143,6 +150,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
   if (Object.keys(fieldErrors).length > 0) return { ok: false, formError: "입력값을 확인하세요.", fieldErrors };
 
   const range = occupancyRange(space, input.date, input.startMinutes, input.endMinutes);
+  const applicantPasswordHash = await hashApplicantPassword(String(raw.applicantPassword));
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -261,6 +269,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
           },
           totalAmount: price.total,
           receiptRequest: receipt.ok ? receipt.value : null,
+          applicantPasswordHash,
           consents: Object.fromEntries(
             [...Object.keys(requiredConsents), ...Object.keys(optionalConsents).filter((k) => input.consents.includes(k))].map((k) => [k, consentAt]),
           ),
