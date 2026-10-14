@@ -54,3 +54,12 @@ export function kstDateOf(date: Date): string {
 export function kstStartOfDay(date: string): Date {
   return new Date(`${date}T00:00:00+09:00`);
 }
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** 이용 일시: 2026. 10. 27.(화) 12:00–15:00 (안내 문구의 {일자}) */
+export function formatKstRange(start: Date, end: Date): string {
+  const weekday = WEEKDAYS[new Date(`${kstDateOf(start)}T12:00:00${KST_OFFSET}`).getUTCDay()];
+  const s = formatKst(start);
+  return `${s.slice(0, -6)}(${weekday}) ${s.slice(-5)}–${formatKst(end).slice(-5)}`;
+}

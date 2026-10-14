@@ -1,3 +1,4 @@
+import { splitSubject } from "@/domain/messages/template";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 
 /** 알림 사건 ([요구] 21장, v0.2 흐름) */
@@ -36,6 +37,8 @@ export interface MessageContext {
   bankAccountInfo?: string | null;
   /** 계좌이체 입금 기한 (표시용 문자열) */
   depositDeadline?: string | null;
+  /** 공간별 승인 안내 문구(자리표시자를 채운 것). 있으면 승인 메일을 이 문구로 보낸다 */
+  approvalNotice?: string | null;
 }
 
 const isBank = (c: MessageContext) => c.method === "bank_transfer";
@@ -59,13 +62,18 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
     case "rejected":
       return {
         subject: `[전태일기념관] 대관 신청 심사 결과 안내 (${c.applicationNo})`,
-        body: `${head}\n\n아쉽게도 이번 신청은 승인되지 않았습니다.\n사유: ${c.reason ?? ""}${c.total > 0 ? `\n\n${payWord(c)} 금액 ${formatWon(c.total)}은 전액 환불 처리됩니다. ${isBank(c) ? "담당자가 입금하신 계좌로 돌려드리며, 계좌 확인을 위해 연락드릴 수 있습니다." : "카드 결제는 카드사 사정에 따라 환불 확인까지 며칠이 걸릴 수 있습니다."}` : ""}\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n\n아쉽게도 이번 신청은 승인되지 않았습니다.\n\n[반려 사유]\n${c.reason ?? ""}${c.total > 0 ? `\n\n${payWord(c)} 금액 ${formatWon(c.total)}은 전액 환불 처리됩니다. ${isBank(c) ? "담당자가 입금하신 계좌로 돌려드리며, 계좌 확인을 위해 연락드릴 수 있습니다." : "카드 결제는 카드사 사정에 따라 환불 확인까지 며칠이 걸릴 수 있습니다."}` : ""}\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
-    case "approved":
+    case "approved": {
+      if (c.approvalNotice?.trim()) {
+        const { subject, body } = splitSubject(c.approvalNotice);
+        return { subject, body: `${body}\n\n신청번호: ${c.applicationNo}\n예약 내역 보기: ${c.myUrl}\n\n이 메일은 발신 전용입니다.` };
+      }
       return {
         subject: `[전태일기념관] 대관 예약이 확정되었습니다 (${c.applicationNo})`,
         body: `${head}\n\n신청이 승인되어 예약이 확정되었습니다.\n이용 당일에는 대관 운영규정을 지켜 주세요.\n\n예약 내역 보기: ${c.myUrl}${footer}`,
       };
+    }
     case "withdrawn":
       return {
         subject: `[전태일기념관] 대관 신청이 철회되었습니다 (${c.applicationNo})`,

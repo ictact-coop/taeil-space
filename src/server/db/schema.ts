@@ -170,6 +170,8 @@ export const spaces = pgTable(
     description: text("description").notNull().default(""),
     equipment: jsonb("equipment").$type<string[]>().notNull().default([]),
     notice: text("notice").notNull().default(""),
+    /** 승인 안내 문구(승인 메일·나의 대관). 첫 줄은 메일 제목. 비우면 기본 승인 메일 */
+    approvalNotice: text("approval_notice").notNull().default(""),
     /** 신청기한: 이용일 며칠 전까지. null이면 접수기간(booking_windows)으로 관리(교육실). */
     leadDays: integer("lead_days"),
     slotMinutes: integer("slot_minutes").notNull().default(60),

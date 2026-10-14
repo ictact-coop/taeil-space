@@ -30,6 +30,7 @@ export default async function NewSpacePage() {
           description: "",
           equipment: "",
           notice: "",
+          approvalNotice: "",
           leadDays: "14",
           slotMinutes: "60",
           minDurationMinutes: "60",

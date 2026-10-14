@@ -150,6 +150,7 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     const [pay] = await db.select().from(payments).where(eq(payments.id, s.pay.id));
     expect(pay?.status).toBe("cancelled");
     expect(memoryOutbox.some((m) => m.subject.includes("심사 결과") && m.text.includes("전액 환불"))).toBe(true);
+    expect(memoryOutbox.some((m) => m.text.includes("[반려 사유]\n행사 목적이 대관 취지와 맞지 않습니다."))).toBe(true);
     // 반려한 신청은 다시 승인할 수 없다
     expect(await approveApplication(db, { actor: rental, applicationId: s.app.id })).toMatchObject({ ok: false });
   });
@@ -161,6 +162,20 @@ describe.skipIf(!hasTestDb)("단계 3 결제·심사·환불", () => {
     expect((await appOf(s.app.id)).status).toBe("confirmed");
     expect((await occOf(s.app.id))?.kind).toBe("confirmed");
     expect(memoryOutbox.some((m) => m.subject.includes("예약이 확정"))).toBe(true);
+  });
+
+  it("공간에 승인 안내 문구가 있으면 그 문구로 승인 메일을 보낸다(첫 줄은 제목, 자리표시자 채움)", async () => {
+    await db.update(spaces).set({ approvalNotice: "[전태일기념관] 세미나실 신청이 승인되었습니다.\n\n일자: {일자}\n장소: 전태일기념관 4층 세미나실\n단체: {단체명}" }).where(eq(spaces.id, room.id));
+    try {
+      const s = await paid();
+      expect(await approveApplication(db, { actor: rental, applicationId: s.app.id })).toEqual({ ok: true });
+      const mail = memoryOutbox.find((m) => m.subject === "[전태일기념관] 세미나실 신청이 승인되었습니다.");
+      expect(mail?.text).toMatch(/^일자: \d{4}\. \d{2}\. \d{2}\.\([일월화수목금토]\) \d{2}:\d{2}–\d{2}:\d{2}\n장소: 전태일기념관 4층 세미나실\n단체: \S/);
+      expect(mail?.text).toContain(`신청번호: ${s.app.applicationNo}`);
+      expect(mail?.text).not.toContain("{");
+    } finally {
+      await db.update(spaces).set({ approvalNotice: "" }).where(eq(spaces.id, room.id));
+    }
   });
 
   it("보완 요청 → 신청자 보완 제출 → 다시 검토중, 금액과 무관한 항목만 바뀐다", async () => {

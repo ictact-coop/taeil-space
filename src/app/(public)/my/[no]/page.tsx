@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fillTemplate, splitSubject } from "@/domain/messages/template";
+import { templateVars } from "@/server/notifications/queue";
 import { Notice } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Steps } from "@/components/public/steps";
@@ -94,10 +96,16 @@ export default async function MyApplicationPage({
           {a.decisionReason && a.status === "rejected" && (
             <>
               <dt className="text-muted">반려 사유</dt>
-              <dd>{a.decisionReason}</dd>
+              <dd className="whitespace-pre-line">{a.decisionReason}</dd>
             </>
           )}
         </dl>
+        {(a.status === "confirmed" || a.status === "completed") && view.spaceApprovalNotice.trim() && (
+          <div className="mt-4 rounded bg-cream p-4 text-sm">
+            <p className="font-semibold text-navy">이용 안내</p>
+            <p className="mt-2 whitespace-pre-line">{fillTemplate(splitSubject(view.spaceApprovalNotice).body, templateVars(a, spaceName))}</p>
+          </div>
+        )}
         {a.status === "pending_payment" && (
           <Link href={`/apply/pay/${a.applicationNo}`} className="btn-primary mt-4">
             {bank ? "입금 계좌 보기" : "결제하러 가기"}

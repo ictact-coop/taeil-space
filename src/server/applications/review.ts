@@ -43,6 +43,7 @@ async function withApplication(
 const reasonOf = (s: string, label: string) => {
   const r = s.trim();
   if (r.length < 2) throw new TransitionError(`${label}을(를) 입력하세요.`);
+  if (r.length > 3000) throw new TransitionError(`${label}은(는) 3000자까지 입력할 수 있습니다.`);
   return r;
 };
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Paragraphs } from "@/components/public/paragraphs";
+import { RENTAL_STEPS, RentalSteps } from "@/components/public/rental-steps";
 import { formatMinutes, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import { describeRefundTiers } from "@/domain/refund/tiers";
@@ -13,14 +14,6 @@ export default async function GuidePage() {
   const { settings: s, spaces, fee, discounts } = await getPublicInfo(db);
   const bank = effectivePaymentMethod(s["payment.method"]) === "bankTransfer";
   const word = bank ? "입금" : "결제";
-  const steps = [
-    { title: "공간·일정 선택", body: "공간과 날짜·시간을 고르면 신청 조건을 바로 확인하고 예상 금액을 보여 드립니다." },
-    bank
-      ? { title: "신청정보 입력·입금", body: `단체·행사 정보를 입력하고 규정에 동의해 신청한 뒤, 안내받은 계좌로 ${s["payment.bankTransferHoldHours"]}시간 안에 입금합니다. 담당자가 입금을 확인하면 신청이 접수됩니다.` }
-      : { title: "신청정보 입력·결제", body: "단체·행사 정보를 입력하고 규정에 동의한 뒤 결제하면 신청이 접수됩니다." },
-    { title: "관리자 심사", body: `담당자가 ${s["operation.reviewPeriodText"]} 안에 심사합니다. 보완이 필요하면 연락드립니다.` },
-    { title: "예약확정", body: `승인되면 예약이 확정됩니다. 반려되면 ${word} 금액 전액을 ${bank ? "돌려드립니다" : "자동으로 환불합니다"}.` },
-  ];
 
   return (
     <>
@@ -47,7 +40,7 @@ export default async function GuidePage() {
           </div>
           <ol className="flex flex-col gap-3 border-white/20 md:w-72 md:border-l md:pl-8" aria-label="예약 절차">
             <li className="text-xs font-semibold text-white/60">예약 절차</li>
-            {steps.map((step, i) => (
+            {RENTAL_STEPS.map((step, i) => (
               <li key={step.title} className="flex items-center gap-3">
                 <span className={`flex size-8 items-center justify-center text-sm ${i === 0 ? "bg-brick" : "border border-white/40"}`}>
                   {String(i + 1).padStart(2, "0")}
@@ -64,18 +57,14 @@ export default async function GuidePage() {
           <h2 id="h-steps" className="font-serif text-2xl text-navy">
             대관 절차
           </h2>
-          <ol className="mt-5 grid gap-4 md:grid-cols-4">
-            {steps.map((step, i) => (
-              <li key={step.title} className="rounded-lg border border-line bg-white p-5">
-                <p className="text-xs font-semibold text-brick">{String(i + 1).padStart(2, "0")}</p>
-                <p className="mt-1 font-semibold text-navy">{step.title}</p>
-                <p className="mt-2 text-sm text-muted">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-4 rounded-lg bg-cream p-4 text-sm">
-            <Paragraphs text={s["content.guideNotice"]} />
+          <div className="mt-8">
+            <RentalSteps />
           </div>
+          {s["content.guideNotice"].trim() && (
+            <div className="mt-8 rounded-lg bg-cream p-4 text-sm">
+              <Paragraphs text={s["content.guideNotice"]} />
+            </div>
+          )}
         </section>
 
         <section aria-labelledby="h-time" className="grid gap-4 md:grid-cols-2">
@@ -93,7 +82,7 @@ export default async function GuidePage() {
                   <dt className="text-muted">야간</dt>
                   <dd>
                     {s["operation.dayEnd"]} ~ {s["operation.nightEnd"]}
-                    {s["operation.nightOnWeekends"] ? "" : " (평일만, 토·일요일은 야간 대관 불가)"} · 출입문 관리 담당자 지정 필요
+                    {s["operation.nightOnWeekends"] ? "" : " (평일만, 토·일요일은 야간 대관 불가)"}
                   </dd>
                 </>
               )}

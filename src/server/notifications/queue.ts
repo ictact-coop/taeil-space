@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { SettingValues } from "@/domain/settings/definitions";
-import { formatKst } from "@/lib/time";
+import { fillTemplate } from "@/domain/messages/template";
+import { formatKst, formatKstRange } from "@/lib/time";
 import { applications, notificationLogs, payments, slotOccupancies, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
 import { getSettings } from "@/server/settings/service";
@@ -21,6 +22,11 @@ const settingKeyFor: Record<NotificationEvent, keyof SettingValues> = {
   deposit_reminder: "notification.paymentDeadline",
 };
 
+/** 안내 문구 자리표시자 값 */
+export function templateVars(app: { applicationNo: string; orgName: string; contactName: string; startsAt: Date; endsAt: Date }, spaceName: string) {
+  return { 일자: formatKstRange(app.startsAt, app.endsAt), 공간: spaceName, 신청번호: app.applicationNo, 단체명: app.orgName, 담당자: app.contactName };
+}
+
 export function appBaseUrl(): string {
   return (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
@@ -36,7 +42,7 @@ export async function enqueueApplicationNotification(
   extra: Partial<Pick<MessageContext, "reason" | "revisionMessage" | "revisionDeadline" | "refundAmount">> = {},
 ): Promise<void> {
   const [row] = await tx
-    .select({ app: applications, spaceName: spaces.name })
+    .select({ app: applications, spaceName: spaces.name, approvalNotice: spaces.approvalNotice })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(eq(applications.id, applicationId));
@@ -65,6 +71,7 @@ export async function enqueueApplicationNotification(
       ((app.policySnapshot as { settings?: { values?: Record<string, unknown> } } | null)?.settings?.values?.["payment.bankAccountInfo"] as string | undefined) ||
       null,
     depositDeadline: hold?.expiresAt ? `${formatKst(hold.expiresAt)}까지` : null,
+    approvalNotice: event === "approved" && row.approvalNotice.trim() ? fillTemplate(row.approvalNotice, templateVars(app, row.spaceName)) : null,
     ...extra,
   };
   const channel = settings[settingKeyFor[event]] as "both" | "email" | "lms" | "off";
