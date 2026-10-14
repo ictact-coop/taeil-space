@@ -24,7 +24,7 @@ export default async function GuidePage() {
         aria-label="전태일기념관 대관 안내"
       >
         {/* 좁은 화면: 글·버튼 아래에 그림(건물)이 보이도록 아래 여백을 둔다. 그림 위쪽 하늘색과 배경색이 같아 이음새가 없다 */}
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[290px] sm:px-6 md:min-h-[600px] md:grid-cols-[minmax(0,1fr)_auto] md:gap-8 md:pt-16 md:pb-10">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[280px] sm:px-6 md:min-h-[500px] md:grid-cols-[minmax(0,1fr)_auto] md:gap-8 md:pt-14 md:pb-10">
           {s["content.heroHtml"].trim() ? (
             // 정책 설정의 안내 상자 HTML(허용 목록으로 거른 뒤 넣는다)
             <div
@@ -58,7 +58,7 @@ export default async function GuidePage() {
         </div>
       </section>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12 sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pt-6 pb-12 sm:px-6">
         <section aria-labelledby="h-steps">
           <h2 id="h-steps" className="font-serif text-2xl text-navy">
             대관 절차
@@ -113,6 +113,7 @@ export default async function GuidePage() {
           <h2 id="h-fee" className="font-serif text-2xl text-navy">
             공간과 요금
           </h2>
+          <p className="mt-1 text-sm text-muted">표시된 요금은 모두 부가세 포함 금액입니다.</p>
           <div className="mt-5 overflow-x-auto rounded-lg border border-line bg-white">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead className="bg-cream text-xs text-muted">

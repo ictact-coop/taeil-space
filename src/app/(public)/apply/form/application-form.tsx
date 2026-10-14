@@ -81,6 +81,8 @@ function Body({
   const e = state.fieldErrors ?? {};
   const [discountId, setDiscountId] = useState(str(v, "discountRuleId", ""));
   const [optionKeys, setOptionKeys] = useState<string[]>(list(v, "optionKeys", []));
+  const [receiptType, setReceiptType] = useState(str(v, "receiptType", "none") || "none");
+  const [cashPurpose, setCashPurpose] = useState(str(v, "cashPurpose", "income") || "income");
   const [headcount, setHeadcount] = useState(str(v, "expectedHeadcount", ""));
   const [price, setPrice] = useState<Price | null>(props.initialPrice);
   const [liveErrors, setLiveErrors] = useState<string[]>([]);
@@ -283,6 +285,73 @@ function Body({
           </fieldset>
         )}
 
+        <fieldset className="grid gap-4 rounded-lg border border-line bg-white p-5 sm:grid-cols-2">
+          <legend className="px-1 font-semibold text-navy">현금영수증·세금계산서 (선택)</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm sm:col-span-2" role="radiogroup" aria-label="증빙 발행">
+            {(
+              [
+                ["none", "필요 없음"],
+                ["cash", "현금영수증"],
+                ["tax_invoice", "세금계산서"],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex items-center gap-2">
+                <input type="radio" name="receiptType" value={value} checked={receiptType === value} onChange={() => setReceiptType(value)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          {e.receiptType && <p className="text-xs text-danger sm:col-span-2">{e.receiptType}</p>}
+          {receiptType === "cash" && (
+            <>
+              <div className="flex flex-col gap-1 text-sm font-medium">
+                <span>용도</span>
+                <div className="flex gap-4 font-normal">
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="cashPurpose" value="income" checked={cashPurpose === "income"} onChange={() => setCashPurpose("income")} />
+                    소득공제(개인)
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="cashPurpose" value="expense" checked={cashPurpose === "expense"} onChange={() => setCashPurpose("expense")} />
+                    지출증빙(사업자)
+                  </label>
+                </div>
+              </div>
+              <Field label={cashPurpose === "income" ? "휴대전화 번호 *" : "사업자등록번호 *"} name="cashNumber" error={e.cashNumber}>
+                {input("cashNumber", { inputMode: "numeric", placeholder: cashPurpose === "income" ? "010-0000-0000" : "000-00-00000" })}
+              </Field>
+            </>
+          )}
+          {receiptType === "tax_invoice" && (
+            <>
+              <Field label="사업자등록번호 *" name="taxBizNo" error={e.taxBizNo}>
+                {input("taxBizNo", { inputMode: "numeric", placeholder: "000-00-00000" })}
+              </Field>
+              <Field label="상호(법인명) *" name="taxCompany" error={e.taxCompany}>
+                {input("taxCompany")}
+              </Field>
+              <Field label="대표자 *" name="taxCeo" error={e.taxCeo}>
+                {input("taxCeo")}
+              </Field>
+              <Field label="받을 이메일 *" name="taxEmail" error={e.taxEmail}>
+                {input("taxEmail", { type: "email", inputMode: "email" })}
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="사업장 주소" name="taxAddress" error={e.taxAddress}>
+                  {input("taxAddress")}
+                </Field>
+              </div>
+              <Field label="업태" name="taxBizType" error={e.taxBizType}>
+                {input("taxBizType")}
+              </Field>
+              <Field label="종목" name="taxBizItem" error={e.taxBizItem}>
+                {input("taxBizItem")}
+              </Field>
+            </>
+          )}
+          {receiptType !== "none" && <p className="text-xs text-muted sm:col-span-2">입금이 확인되면 담당자가 발행합니다. 발행 전 정보가 바뀌면 기념관으로 연락해 주세요.</p>}
+        </fieldset>
+
         <fieldset className="flex flex-col gap-3 rounded-lg border border-line bg-white p-5">
           <legend className="px-1 font-semibold text-navy">첨부파일</legend>
           <p className="text-xs text-muted">
@@ -376,7 +445,7 @@ function Body({
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-muted">{props.bankTransfer ? "입금 금액" : "결제 금액"}</p>
+              <p className="mt-3 text-xs text-muted">{props.bankTransfer ? "입금 금액" : "결제 금액"} (부가세 포함)</p>
               <p className="font-serif text-3xl text-brick">{won(price.total)}</p>
             </>
           ) : (

@@ -400,6 +400,8 @@ export const applications = pgTable(
      * 가져온 입금 대기 신청은 자동 취소·입금 기한 알림을 하지 않는다(담당자가 직접 처리).
      */
     importRef: text("import_ref").unique(),
+    /** 현금영수증·세금계산서 발행 희망(선택). 모양은 src/domain/booking/receipt.ts */
+    receiptRequest: jsonb("receipt_request").$type<import("@/domain/booking/receipt").ReceiptRequest>(),
     ...timestamps,
   },
   (t) => [

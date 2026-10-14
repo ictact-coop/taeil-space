@@ -68,7 +68,7 @@ export default async function SpaceDetailPage({ params }: { params: Promise<{ co
             <dt className="text-muted">요금</dt>
             <dd>
               {f
-                ? `${formatMinutes(f.baseMinutes)} ${formatWon(f.baseFee)} · 추가 ${formatMinutes(f.extraUnitMinutes)}당 ${formatWon(f.extraFee)}`
+                ? `${formatMinutes(f.baseMinutes)} ${formatWon(f.baseFee)} · 추가 ${formatMinutes(f.extraUnitMinutes)}당 ${formatWon(f.extraFee)} (부가세 포함)`
                 : "요금 확정 후 안내"}
             </dd>
             {space.notice && (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { fillTemplate, splitSubject } from "@/domain/messages/template";
+import { describeReceipt } from "@/domain/booking/receipt";
 import { templateVars } from "@/server/notifications/queue";
 import { Notice } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -86,7 +87,10 @@ export default async function MyApplicationPage({
           <dt className="text-muted">인원</dt>
           <dd>{a.expectedHeadcount}명</dd>
           <dt className="text-muted">{word} 금액</dt>
-          <dd>{formatWon(a.totalAmount ?? 0)}</dd>
+          <dd>
+            {formatWon(a.totalAmount ?? 0)}
+            <span className="ml-1 text-xs font-normal text-muted">(부가세 포함)</span>
+          </dd>
           {a.status === "pending_payment" && bank && view.holdExpiresAt && (
             <>
               <dt className="text-muted">입금 기한</dt>
@@ -94,6 +98,12 @@ export default async function MyApplicationPage({
                 {formatKst(view.holdExpiresAt)}까지
                 <span className="block text-xs text-muted">{fillTemplate(settings["payment.depositorNameGuide"], templateVars(a, spaceName))}</span>
               </dd>
+            </>
+          )}
+          {a.receiptRequest && (
+            <>
+              <dt className="text-muted">증빙 발행</dt>
+              <dd>{describeReceipt(a.receiptRequest)}</dd>
             </>
           )}
           {a.decisionReason && a.status === "rejected" && (

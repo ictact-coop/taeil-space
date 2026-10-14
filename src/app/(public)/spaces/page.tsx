@@ -32,7 +32,7 @@ export default async function SpacesPage() {
                   {space.leadDays === null ? " · 공개된 접수기간에 신청" : space.leadDays > 0 ? ` · 이용일 ${space.leadDays}일 전까지 신청` : ""}
                 </p>
                 {space.equipment.length > 0 && <p className="text-xs text-muted">장비: {space.equipment.join(", ")}</p>}
-                <p className="text-sm">{f ? `${formatMinutes(f.baseMinutes)} ${formatWon(f.baseFee)}부터` : "요금 확정 후 안내"}</p>
+                <p className="text-sm">{f ? `${formatMinutes(f.baseMinutes)} ${formatWon(f.baseFee)}부터 (부가세 포함)` : "요금 확정 후 안내"}</p>
                 <div className="mt-auto flex gap-2 pt-3">
                   <Link href={`/spaces/${space.code}`} className="btn-secondary flex-1">
                     상세·일정

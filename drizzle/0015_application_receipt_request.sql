@@ -1,0 +1,1 @@
+ALTER TABLE "applications" ADD COLUMN "receipt_request" jsonb;
