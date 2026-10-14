@@ -64,7 +64,7 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
     case "approved":
       return {
         subject: `[전태일기념관] 대관 예약이 확정되었습니다 (${c.applicationNo})`,
-        body: `${head}\n\n신청이 승인되어 예약이 확정되었습니다.\n이용 당일에는 대관 운영규정을 지켜 주시고, 18:00 이전에 사용·철수 방법을 담당자에게 인계받아 주세요.\n\n예약 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n\n신청이 승인되어 예약이 확정되었습니다.\n이용 당일에는 대관 운영규정을 지켜 주세요.\n\n예약 내역 보기: ${c.myUrl}${footer}`,
       };
     case "withdrawn":
       return {

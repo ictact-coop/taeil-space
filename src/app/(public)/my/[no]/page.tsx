@@ -4,9 +4,7 @@ import { Notice } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Steps } from "@/components/public/steps";
 import { formatWon } from "@/domain/pricing/fee-schedule";
-import { toMinutes } from "@/domain/booking/time";
 import { formatKst } from "@/lib/time";
-import { toMinutesOfDay } from "@/lib/time-of-day";
 import { getApplicantView } from "@/server/applicant/current";
 import { statusLabels } from "@/server/applications/transition";
 import { newUploadToken } from "@/server/booking/attachments";
@@ -55,7 +53,6 @@ export default async function MyApplicationPage({
   const canWithdraw = ["pending_payment", "submitted", "reviewing", "revision_requested"].includes(a.status);
   const snapshotRate = (a.policySnapshot as { settings?: { values?: Record<string, number> } } | null)?.settings?.values?.["payment.withdrawRefundPercent"];
   const withdrawRate = snapshotRate ?? settings["payment.withdrawRefundPercent"];
-  const night = toMinutesOfDay(a.endsAt) > toMinutes(settings["operation.dayEnd"]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -94,12 +91,6 @@ export default async function MyApplicationPage({
               <dd>{formatKst(view.holdExpiresAt)}까지 · 입금자명에 신청번호를 적어 주세요</dd>
             </>
           )}
-          {a.status === "confirmed" && (
-            <>
-              <dt className="text-muted">안내</dt>
-              <dd>예약이 확정되었습니다. 18:00 이전에 담당자에게 사용·철수 방법을 인계받아 주세요.</dd>
-            </>
-          )}
           {a.decisionReason && a.status === "rejected" && (
             <>
               <dt className="text-muted">반려 사유</dt>
@@ -128,9 +119,6 @@ export default async function MyApplicationPage({
                 eventTitle: a.eventTitle,
                 eventPurpose: a.eventPurpose,
                 expectedHeadcount: a.expectedHeadcount,
-                nightManagerName: a.nightManagerName ?? "",
-                nightManagerPhone: a.nightManagerPhone ?? "",
-                night,
                 uploadToken: newUploadToken(),
                 extensions: settings["application.attachmentExtensions"],
               }}

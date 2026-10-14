@@ -8,7 +8,6 @@ export interface FormProps {
   date: string;
   start: string;
   end: string;
-  night: boolean;
   options: { key: string; name: string; label: string }[];
   discounts: { id: string; name: string; label: string; proofRequired: boolean; proofGuide: string; description: string }[];
   consents: { key: string; label: string; text: string }[];
@@ -243,19 +242,6 @@ function Body({
             />
           </Field>
         </fieldset>
-
-        {props.night && (
-          <fieldset className="grid gap-4 rounded-lg border border-navy/30 bg-white p-5 sm:grid-cols-2">
-            <legend className="px-1 font-semibold text-navy">야간 출입문 관리 (필수)</legend>
-            <p className="text-xs text-muted sm:col-span-2">야간을 포함한 대관은 출입문을 관리할 담당자가 필요합니다. 18:00 이전에 사용·철수 방법을 인계받아야 합니다.</p>
-            <Field label="출입문 관리 담당자 *" name="nightManagerName" error={e.nightManagerName}>
-              {input("nightManagerName")}
-            </Field>
-            <Field label="담당자 연락처 *" name="nightManagerPhone" error={e.nightManagerPhone}>
-              {input("nightManagerPhone", { type: "tel", inputMode: "tel", placeholder: "010-0000-0000" })}
-            </Field>
-          </fieldset>
-        )}
 
         {(props.options.length > 0 || props.discounts.length > 0) && (
           <fieldset className="grid gap-4 rounded-lg border border-line bg-white p-5 sm:grid-cols-2">
