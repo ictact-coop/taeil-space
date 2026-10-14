@@ -33,7 +33,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
     <div className="flex flex-col gap-6">
       <PageHeader
         title="요금표"
-        description="공간 기본요금 + 추가시간 요금 + 야간요금 + 옵션 − 감면 = 결제금액 ([요구] 16장). 요금표를 바꿔도 이미 결제한 신청의 금액은 바뀌지 않습니다."
+        description="공간 기본요금 + 추가시간 요금 + 야간요금 + 옵션 − 감면 = 결제금액 ([요구] 16장). 새 요금표가 적용되면 입금 대기(결제 대기) 중인 신청의 금액도 새 요금표로 다시 계산합니다(감면은 그대로). 이미 입금·결제한 신청의 금액은 바뀌지 않습니다."
         crumbs={[{ href: "/admin/settings", label: "정책 설정" }]}
       />
       <ResultNotice done={done} error={error} />

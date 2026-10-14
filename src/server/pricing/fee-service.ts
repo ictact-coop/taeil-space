@@ -7,6 +7,7 @@ import { type Actor, type MutationResult, requireReason } from "@/server/actor";
 import { assertPermission } from "@/server/auth/permissions";
 import { adminUsers, feeSchedules, spaces } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
+import { repricePendingApplications } from "./reprice-pending";
 
 const PAST_TOLERANCE_MS = 10 * 60 * 1000;
 
@@ -91,7 +92,7 @@ export async function saveFeeSchedule(
   const keys = items.options.map((o) => o.key);
   if (new Set(keys).size !== keys.length) return { ok: false, formError: "옵션 키가 중복되었습니다." };
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     await lock(tx);
     const allSpaces = await tx.select({ id: spaces.id, name: spaces.name, isPublic: spaces.isPublic }).from(spaces);
     const known = new Set(allSpaces.map((s) => s.id));
@@ -123,6 +124,9 @@ export async function saveFeeSchedule(
     });
     return { ok: true, value: { id: created!.id } } as const;
   });
+  // 바로 적용되는 요금표면 입금 전 신청 금액도 지금 바꾼다(예약 적용분은 작업 큐가 적용 시각에 처리)
+  if (result.ok && effectiveFrom.getTime() <= now.getTime()) await repricePendingApplications(db, now);
+  return result;
 }
 
 /** 예약된 요금표 취소: 같은 적용 시각에 직전 요금표를 다시 추가한다. */

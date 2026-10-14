@@ -1,8 +1,9 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { applicantOtps, applicantSessions, applications } from "@/server/db/schema";
 import type { Db, DbOrTx } from "@/server/db/types";
-import { burnPasswordCheck, verifyPassword } from "@/server/auth/password";
+import { burnPasswordCheck, hashPassword, verifyPassword } from "@/server/auth/password";
+import { writeAudit } from "@/server/audit/log";
 import { enqueueEmail, flushNotifications } from "@/server/notifications/queue";
 
 /**
@@ -129,6 +130,49 @@ export function validateApplicantPassword(password: string, confirm: string): st
   return null;
 }
 export { hashPassword as hashApplicantPassword } from "@/server/auth/password";
+
+export type ChangePasswordResult = { ok: true; count: number } | { ok: false; error: string };
+
+/**
+ * 로그인한 신청자가 나의 대관 비밀번호를 바꾼다. 지금 볼 수 있는 신청 모두에 같은 비밀번호를 정한다.
+ * 비밀번호를 잊은 경우: 이메일 확인 코드로 들어와서 여기서 새로 정한다(재설정). 이메일로 받을 수 없으면 관리자가 정해 준다.
+ */
+export async function changeApplicantPassword(
+  db: Db,
+  principal: ApplicantPrincipal,
+  password: string,
+  confirm: string,
+  ip: string | null = null,
+): Promise<ChangePasswordResult> {
+  const error = validateApplicantPassword(password, confirm);
+  if (error) return { ok: false, error };
+  const conds = [
+    principal.email ? eq(applications.contactEmail, principal.email) : undefined,
+    principal.applicationIds?.length ? inArray(applications.id, principal.applicationIds) : undefined,
+  ].filter((c) => c !== undefined);
+  if (conds.length === 0) return { ok: false, error: "다시 로그인해 주세요." };
+  const hash = await hashPassword(password);
+  const updated = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(applications)
+      .set({ applicantPasswordHash: hash })
+      .where(or(...conds))
+      .returning({ id: applications.id });
+    for (const r of rows) {
+      await writeAudit(tx, {
+        actorType: "applicant",
+        actorId: principal.email ?? principal.label,
+        action: "application.applicant_password_changed",
+        targetType: "application",
+        targetId: r.id,
+        ip,
+      });
+    }
+    return rows.length;
+  });
+  if (updated === 0) return { ok: false, error: "비밀번호를 바꿀 신청이 없습니다." };
+  return { ok: true, count: updated };
+}
 
 export async function endApplicantSession(db: DbOrTx, token: string | undefined): Promise<void> {
   if (token) await db.delete(applicantSessions).where(eq(applicantSessions.id, sha(token)));

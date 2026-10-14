@@ -8,6 +8,7 @@ import { listApplicationsForPrincipal } from "@/server/booking/access";
 import { db } from "@/server/db/client";
 import { logoutAction } from "./actions";
 import { LoginForm } from "./login-form";
+import { PasswordForm } from "./password-form";
 
 export const metadata: Metadata = { title: "나의 대관" };
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ export default async function MyPage() {
           ))}
         </ul>
       )}
+      {rows.length > 0 && <PasswordForm viaEmail={Boolean(me.email)} />}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   addNoteAction,
   approveAction,
   cancelConfirmedAction,
+  applicantPasswordAction,
   changeDiscountAction,
   confirmDepositAction,
   deleteApplicationAction,
@@ -108,6 +109,21 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 <span className={`ml-2 rounded px-1.5 py-0.5 text-xs ${app.consents.smsReceive ? "bg-status-green/10 text-status-green" : "bg-cream text-muted"}`}>
                   문자 수신 {app.consents.smsReceive ? "동의" : "미동의"}
                 </span>
+                {canReview && (
+                  <details className="mt-2 rounded border border-line p-2 text-sm">
+                    <summary className="cursor-pointer text-xs font-medium text-navy">나의 대관 비밀번호 다시 정하기</summary>
+                    <form action={b(applicantPasswordAction, app.applicationNo, app.id)} className="mt-2 flex flex-col gap-2">
+                      <p className="text-xs text-muted">
+                        신청자가 비밀번호를 잊었고 이메일로 확인 코드를 받을 수 없을 때, 전화 등으로 본인을 확인한 뒤 새 비밀번호를 정해 알려 줍니다. 이 신청에만 적용됩니다.
+                      </p>
+                      <input name="password" required minLength={4} maxLength={50} autoComplete="off" placeholder="새 비밀번호(4자 이상)" className="input" aria-label="새 비밀번호" />
+                      <input name="reason" required minLength={2} placeholder="사유 (예: 전화로 본인 확인 후 요청)" className="input" aria-label="사유" />
+                      <button type="submit" className="btn-secondary self-start">
+                        비밀번호 정하기
+                      </button>
+                    </form>
+                  </details>
+                )}
               </Row>
               <Row label="행사">
                 {app.eventTitle}

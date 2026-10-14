@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import type { Actor, MutationResult } from "@/server/actor";
+import { validateApplicantPassword } from "@/server/applicant/auth";
 import { writeAudit } from "@/server/audit/log";
+import { hashPassword } from "@/server/auth/password";
 import { PermissionError, assertPermission } from "@/server/auth/permissions";
 import { applications, attachments, notificationLogs, payments, refunds, slotOccupancies } from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
@@ -131,4 +133,34 @@ export async function deleteApplication(db: Db, p: { actor: Actor; applicationId
   const storage = getStorage();
   for (const key of fileKeys) await storage.remove(key).catch(() => undefined);
   return { ok: true };
+}
+
+/**
+ * 나의 대관 비밀번호를 관리자가 다시 정한다(이메일로 확인 코드를 받을 수 없는 신청자가 전화로 요청한 경우 등).
+ * 이 신청 하나에만 적용한다. 신청자 본인 확인은 담당자가 전화 등으로 한다.
+ */
+export async function setApplicantPasswordByAdmin(
+  db: Db,
+  p: { actor: Actor; applicationId: string; password: string; reason: string },
+): Promise<MutationResult> {
+  assertPermission(p.actor, "applications.review");
+  const reason = p.reason.trim();
+  if (reason.length < 2) return { ok: false, formError: "사유를 입력하세요(예: 전화로 본인 확인 후 요청)." };
+  const error = validateApplicantPassword(p.password, p.password);
+  if (error) return { ok: false, formError: error };
+  const hash = await hashPassword(p.password);
+  return db.transaction(async (tx) => {
+    const rows = await tx.update(applications).set({ applicantPasswordHash: hash }).where(eq(applications.id, p.applicationId)).returning({ id: applications.id });
+    if (rows.length === 0) return { ok: false, formError: "신청을 찾을 수 없습니다." } as const;
+    await writeAudit(tx, {
+      actorType: "admin",
+      actorId: p.actor.id,
+      action: "application.applicant_password_reset",
+      targetType: "application",
+      targetId: p.applicationId,
+      reason,
+      ip: p.actor.ip,
+    });
+    return { ok: true } as const;
+  });
 }

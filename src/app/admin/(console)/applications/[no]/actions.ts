@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { hasPermission } from "@/domain/auth/permissions";
 import { withNotice } from "@/lib/url";
 import type { MutationResult } from "@/server/actor";
-import { cancelConfirmedApplication, deleteApplication, setCompleted } from "@/server/applications/admin-manage";
+import { cancelConfirmedApplication, deleteApplication, setApplicantPasswordByAdmin, setCompleted } from "@/server/applications/admin-manage";
 import { changeApplicationDiscount } from "@/server/applications/discount-adjust";
 import { addNote, approveApplication, confirmDeposit, rejectApplication, requestRevision, startReview } from "@/server/applications/review";
 import { requireAdmin, type CurrentAdmin } from "@/server/auth/current";
@@ -40,6 +40,11 @@ export async function changeDiscountAction(no: string, id: string, f: FormData):
     done = r.value.refundAmount > 0 ? `감면을 바꿨습니다. 차액 ${r.value.refundAmount.toLocaleString("ko-KR")}원 환불을 요청했습니다.` : `감면을 바꿨습니다. 금액: ${r.value.total.toLocaleString("ko-KR")}원`;
     return { ok: true };
   });
+}
+export async function applicantPasswordAction(no: string, id: string, f: FormData): Promise<void> {
+  await run(no, "나의 대관 비밀번호를 다시 정했습니다. 신청자에게 알려 주세요.", (a) =>
+    setApplicantPasswordByAdmin(db, { actor: actor(a), applicationId: id, password: s(f, "password"), reason: s(f, "reason") }),
+  );
 }
 export async function startReviewAction(no: string, id: string): Promise<void> {
   await run(no, "검토를 시작했습니다.", (a) => startReview(db, { actor: actor(a), applicationId: id }));
