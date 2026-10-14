@@ -5,7 +5,7 @@ import { toMinutes } from "@/domain/booking/time";
 import { isValidDateString } from "@/domain/calendar/closures";
 import { feeOptionUnitLabels, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
-import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent } from "@/domain/spaces/consents";
+import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
 import { describeRefundTiers } from "@/domain/refund/tiers";
 import { newUploadToken } from "@/server/booking/attachments";
 import { quote } from "@/server/booking/availability";
@@ -81,6 +81,7 @@ export default async function ApplicationFormPage({ searchParams }: { searchPara
           options: (ctx.fee?.items.options ?? []).map((o) => ({ key: o.key, name: o.name, label: `${o.name} (${feeOptionUnitLabels[o.unit]} ${formatWon(o.fee)})` })),
           discounts: discounts.map((d) => ({ id: d.id, name: d.name, label: describeDiscount(d), proofRequired: d.proofRequired, proofGuide: d.proofGuide, description: d.description })),
           consents: Object.entries(consentList).map(([key, label]) => ({ key, label, text: texts[key] ?? "" })),
+          optionalConsents: Object.entries(optionalConsents).map(([key, label]) => ({ key, label, text: s["content.smsConsent"] })),
           regNoRequired: s["application.orgRegNoRequired"],
           attachment: {
             extensions: s["application.attachmentExtensions"],

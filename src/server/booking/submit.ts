@@ -5,7 +5,7 @@ import { checkBooking, halfYearRange, type Violation } from "@/domain/booking/ru
 import { calculatePrice } from "@/domain/pricing/calculate";
 import { kstDateTime, toMinutes } from "@/domain/booking/time";
 import { validateRegNo } from "@/domain/organization/reg-no";
-import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent } from "@/domain/spaces/consents";
+import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
 import { fieldErrorsFrom, pgErrorCode } from "@/server/actor";
@@ -255,7 +255,9 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
             discount: discount ? { id: discount.id, name: discount.name, kind: discount.kind, value: discount.value, proofRequired: discount.proofRequired } : null,
           },
           totalAmount: price.total,
-          consents: Object.fromEntries(Object.keys(requiredConsents).map((k) => [k, consentAt])),
+          consents: Object.fromEntries(
+            [...Object.keys(requiredConsents), ...Object.keys(optionalConsents).filter((k) => input.consents.includes(k))].map((k) => [k, consentAt]),
+          ),
           submittedAt: now,
           paidAt: free ? now : null,
           accessTokenHash: hashToken(accessToken),

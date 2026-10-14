@@ -39,6 +39,8 @@ export interface MessageContext {
   depositDeadline?: string | null;
   /** 공간별 승인 안내 문구(자리표시자를 채운 것). 있으면 승인 메일을 이 문구로 보낸다 */
   approvalNotice?: string | null;
+  /** 입금자명 안내(설정값, 자리표시자 채운 것) */
+  depositorGuide?: string | null;
 }
 
 const isBank = (c: MessageContext) => c.method === "bank_transfer";
@@ -103,12 +105,12 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
     case "awaiting_deposit":
       return {
         subject: `[전태일기념관] 대관 신청을 받았습니다. 입금해 주세요 (${c.applicationNo})`,
-        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}\n입금자명에 신청번호(${c.applicationNo})를 적어 주세요.\n\n입금 기한까지 이 일정은 다른 신청자가 고를 수 없도록 잡아 두었습니다. 담당자가 입금을 확인하면 신청이 접수되고 심사를 시작합니다.\n기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}${c.depositorGuide?.trim() ? `\n${c.depositorGuide.trim()}` : ""}\n\n입금 기한까지 이 일정은 다른 신청자가 고를 수 없도록 잡아 두었습니다. 담당자가 입금을 확인하면 신청이 접수되고 심사를 시작합니다.\n기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "deposit_reminder":
       return {
         subject: `[전태일기념관] 입금 기한이 곧 끝납니다 (${c.applicationNo})`,
-        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}\n입금자명에 신청번호(${c.applicationNo})를 적어 주세요.\n\n이미 입금하셨다면 담당자가 확인하는 중이니 기다려 주세요. 기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+        body: `${head}\n입금 금액: ${formatWon(c.total)}\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}${c.depositorGuide?.trim() ? `\n${c.depositorGuide.trim()}` : ""}\n\n이미 입금하셨다면 담당자가 확인하는 중이니 기다려 주세요. 기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "revision_submitted":
       return { subject: `[전태일기념관] 보완 내용이 제출되었습니다 (${c.applicationNo})`, body: `${head}\n\n보완 내용이 제출되어 다시 심사합니다.${footer}` };
@@ -127,6 +129,6 @@ export function staffMessage(event: NotificationEvent, c: MessageContext): { sub
   if (!title) return null;
   return {
     subject: `[대관관리] ${title}: ${c.applicationNo} ${c.orgName}`,
-    body: `${title}\n\n신청번호: ${c.applicationNo}\n단체: ${c.orgName}\n공간: ${c.spaceName}\n일시: ${c.when}\n금액: ${formatWon(c.total)}${event === "awaiting_deposit" ? `\n입금 기한: ${c.depositDeadline ?? ""}\n\n통장에서 입금(입금자명에 신청번호)을 확인한 뒤 관리자 화면에서 '입금 확인'을 누르세요.` : "\n\n관리자 화면에서 확인하세요."}`,
+    body: `${title}\n\n신청번호: ${c.applicationNo}\n단체: ${c.orgName}\n공간: ${c.spaceName}\n일시: ${c.when}\n금액: ${formatWon(c.total)}${event === "awaiting_deposit" ? `\n입금 기한: ${c.depositDeadline ?? ""}\n\n통장에서 입금(입금자명은 보통 신청자 이름)을 확인한 뒤 관리자 화면에서 '입금 확인'을 누르세요.` : "\n\n관리자 화면에서 확인하세요."}`,
   };
 }
