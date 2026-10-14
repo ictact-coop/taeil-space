@@ -165,9 +165,11 @@ export function BookingPicker({
           <p className="mt-4 text-sm text-muted">먼저 공간을 선택하세요.</p>
         ) : (
           <>
-            <p className="mb-3 text-xs text-muted">
-              {space.leadDays === null ? `${space.name}은(는) 공개된 접수기간 안의 날짜만 신청할 수 있습니다.` : `${space.name}은(는) 이용일 ${space.leadDays}일 전까지 신청할 수 있습니다.`}
-            </p>
+            {space.leadDays !== 0 && (
+              <p className="mb-3 text-xs text-muted">
+                {space.leadDays === null ? `${space.name}은(는) 공개된 접수기간 안의 날짜만 신청할 수 있습니다.` : `${space.name}은(는) 이용일 ${space.leadDays}일 전까지 신청할 수 있습니다.`}
+              </p>
+            )}
             <SpaceCalendar
               key={space.id}
               spaceId={space.id}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Paragraphs } from "@/components/public/paragraphs";
-import { RENTAL_STEPS, RentalSteps } from "@/components/public/rental-steps";
+import { RentalSteps } from "@/components/public/rental-steps";
 import { formatMinutes, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import { describeRefundTiers } from "@/domain/refund/tiers";
@@ -18,7 +18,7 @@ export default async function GuidePage() {
   return (
     <>
       <section className="bg-navy text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1fr_auto] md:py-20">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1fr_auto] md:items-center md:py-20">
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-[#e98b6f]">SPACE RENTAL · 2026</p>
             <h1 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">
@@ -29,26 +29,19 @@ export default async function GuidePage() {
             <p className="mt-5 max-w-xl text-white/85">
               전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 {word} 후 담당자 심사를 거쳐 확정됩니다.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/apply" className="btn-primary px-6 py-3 text-base">
-                일정 확인 및 신청
-              </Link>
-              <a href="#rules" className="btn border border-white/60 px-6 py-3 text-base text-white hover:bg-white/10">
-                이용규정 보기
-              </a>
-            </div>
           </div>
-          <ol className="flex flex-col gap-3 border-white/20 md:w-72 md:border-l md:pl-8" aria-label="예약 절차">
-            <li className="text-xs font-semibold text-white/60">예약 절차</li>
-            {RENTAL_STEPS.map((step, i) => (
-              <li key={step.title} className="flex items-center gap-3">
-                <span className={`flex size-8 items-center justify-center text-sm ${i === 0 ? "bg-brick" : "border border-white/40"}`}>
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                {step.title}
-              </li>
-            ))}
-          </ol>
+          <div className="flex flex-col items-stretch gap-3 border-white/20 md:w-80 md:border-l md:pl-10">
+            <Link
+              href="/apply"
+              className="flex items-center justify-center gap-3 rounded-lg bg-brick px-8 py-7 text-2xl font-bold text-white shadow-lg ring-1 ring-white/10 transition hover:bg-brick-dark focus-visible:outline-offset-4 sm:text-3xl"
+            >
+              대관 신청
+              <span aria-hidden>→</span>
+            </Link>
+            <a href="#rules" className="btn self-center border border-white/50 px-4 py-2 text-sm text-white hover:bg-white/10 md:self-stretch">
+              이용규정 보기
+            </a>
+          </div>
         </div>
       </section>
 

@@ -28,8 +28,8 @@ export default async function SpacesPage() {
               <div className="flex flex-1 flex-col gap-2 p-5">
                 <h2 className="text-lg font-semibold text-navy">{space.name}</h2>
                 <p className="text-sm">
-                  최대 {space.capacity}명{space.minHeadcount ? ` · ${space.minHeadcount}명 이상` : ""} ·{" "}
-                  {space.leadDays === null ? "공개된 접수기간에 신청" : `이용일 ${space.leadDays}일 전까지 신청`}
+                  최대 {space.capacity}명{space.minHeadcount ? ` · ${space.minHeadcount}명 이상` : ""}
+                  {space.leadDays === null ? " · 공개된 접수기간에 신청" : space.leadDays > 0 ? ` · 이용일 ${space.leadDays}일 전까지 신청` : ""}
                 </p>
                 {space.equipment.length > 0 && <p className="text-xs text-muted">장비: {space.equipment.join(", ")}</p>}
                 <p className="text-sm">{f ? `${formatMinutes(f.baseMinutes)} ${formatWon(f.baseFee)}부터` : "요금 확정 후 안내"}</p>

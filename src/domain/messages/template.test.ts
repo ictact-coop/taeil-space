@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillTemplate, parseMessageTemplates, splitSubject } from "./template";
+import { fillTemplate, noticeLines, parseMessageTemplates, splitSubject } from "./template";
 
 describe("안내 문구 자리표시자·문구 모음", () => {
   it("자리표시자를 채우고, 모르는 것은 그대로 둔다", () => {
@@ -20,5 +20,9 @@ describe("안내 문구 자리표시자·문구 모음", () => {
 
   it("첫 줄은 제목, 나머지는 본문", () => {
     expect(splitSubject("\n[전태일기념관] 세미나실 신청이 승인되었습니다.\n\n일자: x\n")).toEqual({ subject: "[전태일기념관] 세미나실 신청이 승인되었습니다.", body: "일자: x" });
+  });
+
+  it("확인 안내 문구는 줄마다 한 항목, 앞 번호는 뗀다", () => {
+    expect(noticeLines("1. 첫째\n\n2) 둘째\n  셋째  ")).toEqual(["첫째", "둘째", "셋째"]);
   });
 });

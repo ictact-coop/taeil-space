@@ -49,8 +49,12 @@ export default async function SpaceDetailPage({ params }: { params: Promise<{ co
             <dd>
               {space.capacity}명{space.minHeadcount ? ` (${space.minHeadcount}명 이상일 때 신청 가능)` : ""}
             </dd>
-            <dt className="text-muted">신청 조건</dt>
-            <dd>{space.leadDays === null ? "기념관이 공개한 접수기간 안의 날짜만 신청할 수 있습니다." : `이용일 ${space.leadDays}일 전까지 신청해야 합니다.`}</dd>
+            {space.leadDays !== 0 && (
+              <>
+                <dt className="text-muted">신청 조건</dt>
+                <dd>{space.leadDays === null ? "기념관이 공개한 접수기간 안의 날짜만 신청할 수 있습니다." : `이용일 ${space.leadDays}일 전까지 신청해야 합니다.`}</dd>
+              </>
+            )}
             <dt className="text-muted">예약 단위</dt>
             <dd>
               {formatMinutes(space.slotMinutes)} 단위, 최소 {formatMinutes(space.minDurationMinutes)}

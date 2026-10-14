@@ -5,6 +5,7 @@ import { toMinutes } from "@/domain/booking/time";
 import { isValidDateString } from "@/domain/calendar/closures";
 import { feeOptionUnitLabels, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
+import { noticeLines } from "@/domain/messages/template";
 import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
 import { describeRefundTiers } from "@/domain/refund/tiers";
 import { newUploadToken } from "@/server/booking/attachments";
@@ -92,6 +93,7 @@ export default async function ApplicationFormPage({ searchParams }: { searchPara
           initialPrice: check.price,
           bankTransfer,
           depositHours: s["payment.bankTransferHoldHours"],
+          submitNotices: noticeLines(s["content.submitNotices"].replaceAll("{입금기한}", `${s["payment.bankTransferHoldHours"]}시간`)),
         }}
       />
     </div>
