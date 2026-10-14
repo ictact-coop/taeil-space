@@ -410,7 +410,7 @@ async function notionFetch<T>(token: string, path: string, init: RequestInit = {
       res.status === 401
         ? " — NOTION_TOKEN을 확인하세요."
         : res.status === 404
-          ? " — 통합(integration)이 이 데이터베이스와 연결되어 있는지 확인하세요(노션 데이터베이스 … 메뉴 → 연결)."
+          ? " — 토큰을 만든 사람이 이 데이터베이스를 볼 수 있는지(개인 액세스 토큰), 또는 내부 연결이 대관 신청 목록·공간·단체 데이터베이스에 추가되어 있는지(••• → 연결 추가) 확인하세요."
           : "";
     throw new Error(`노션 API ${res.status} ${path}${hint}\n${body.slice(0, 300)}`);
   }

@@ -6,7 +6,7 @@
  *   pnpm import:notion --status "승인,접수 전"  가져올 노션 상태(기본: 승인·접수 전·검토 중·결재 중·보류)
  *   pnpm import:notion --exclude "[기]"        행사명이 이 말로 시작하면 제외(쉼표로 여러 개, 예: 기념관 자체 행사)
  *   pnpm import:notion --file pages.json      노션 API 대신 저장해 둔 응답(JSON)으로
- * 환경변수: DATABASE_URL, NOTION_TOKEN(노션 통합 토큰), NOTION_DATA_SOURCE_ID(기본: 대관 신청 목록)
+ * 환경변수: DATABASE_URL, NOTION_TOKEN(노션 개인 액세스 토큰 또는 내부 연결 토큰), NOTION_DATA_SOURCE_ID(기본: 대관 신청 목록)
  */
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
@@ -47,7 +47,7 @@ if (values.file) {
 } else {
   const token = process.env.NOTION_TOKEN;
   if (!token) {
-    console.error("NOTION_TOKEN 환경변수가 필요합니다(노션 통합 토큰, docs/NOTION_IMPORT.md).");
+    console.error("NOTION_TOKEN 환경변수가 필요합니다(노션 개인 액세스 토큰 또는 내부 연결 토큰, docs/NOTION_IMPORT.md).");
     process.exit(1);
   }
   const dataSource = process.env.NOTION_DATA_SOURCE_ID || DEFAULT_DATA_SOURCE;
