@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { SubmitConfirm } from "./submit-confirm";
 import { list, str, type FormState } from "@/components/admin/form-state";
 
 export interface FormProps {
@@ -21,6 +22,8 @@ export interface FormProps {
   bankTransfer: boolean;
   /** 계좌이체 입금 기한(시간) */
   depositHours: number;
+  /** 신청하기 전 확인 팝업 문구(줄마다 한 항목) */
+  submitNotices: string[];
 }
 
 interface Price {
@@ -392,9 +395,7 @@ function Body({
             ? `신청하면 입금 계좌를 안내해 드립니다. ${props.depositHours}시간 안에 입금하시면 담당자가 확인한 뒤 심사합니다. 반려되면 입금액 전액을 돌려드립니다.`
             : "결제하면 신청이 접수되고, 담당자가 심사합니다. 반려되면 결제 금액 전액을 환불합니다."}
         </p>
-        <button type="submit" className="btn-primary mt-4 w-full" disabled={pending || uploading}>
-          {pending ? "제출 중…" : props.bankTransfer ? "신청하기 →" : "신청하고 결제하기 →"}
-        </button>
+        <SubmitConfirm notices={props.submitNotices} disabled={pending || uploading} label={pending ? "제출 중…" : props.bankTransfer ? "신청하기 →" : "신청하고 결제하기 →"} />
       </aside>
     </form>
   );

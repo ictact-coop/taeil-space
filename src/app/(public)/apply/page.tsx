@@ -32,7 +32,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
           capacity: s.capacity,
           minHeadcount: s.minHeadcount,
           leadDays: s.leadDays,
-          summary: `최대 ${s.capacity}명${s.minHeadcount ? ` · ${s.minHeadcount}명 이상` : ""}${s.leadDays === null ? " · 접수기간 공개" : ` · ${s.leadDays}일 전 신청`}`,
+          summary: `최대 ${s.capacity}명${s.minHeadcount ? ` · ${s.minHeadcount}명 이상` : ""}${s.leadDays === null ? " · 접수기간 공개" : s.leadDays > 0 ? ` · ${s.leadDays}일 전 신청` : ""}`,
         }))}
         initial={{
           spaceId: selected?.id ?? null,

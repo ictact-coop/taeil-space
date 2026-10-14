@@ -37,3 +37,11 @@ export function splitSubject(text: string): { subject: string; body: string } {
   const lines = text.trim().split("\n");
   return { subject: (lines[0] ?? "").trim(), body: lines.slice(1).join("\n").trim() };
 }
+
+/** 정책 설정 문구(신청 전 확인 안내 등)를 줄 단위 목록으로(맨 앞 번호 "1." 등은 떼어 낸다) */
+export function noticeLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim().replace(/^\d+[.)]\s*/, ""))
+    .filter(Boolean);
+}

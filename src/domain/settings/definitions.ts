@@ -423,6 +423,18 @@ export const settingDefinitions = {
     multiline: true,
     maxLength: 10000,
   }),
+  "content.submitNotices": text({
+    group: "content",
+    label: "신청 전 확인 안내(팝업)",
+    description: "신청서에서 '신청하기'를 누르면 뜨는 팝업의 안내 문구입니다. 한 줄에 한 항목씩 쓰고, 신청자가 확인 체크를 해야 신청됩니다. {입금기한}은 정책 설정의 입금 기한(예: 24시간)으로 바뀝니다. 비우면 팝업 없이 바로 신청됩니다.",
+    defaultValue: [
+      "1. 24시간 안에 입금하시면 담당자가 확인한 뒤 심사합니다. 반려되면 입금액 전액을 돌려드립니다.",
+      "2. 신청하신 분과 입금자가 다른 경우, 입금자명을 신청하신 분 이름으로 입금해주세요.",
+      "3. 담당자의 심사 후 반려될 수 있습니다.",
+    ].join("\n"),
+    multiline: true,
+    maxLength: 2000,
+  }),
   "content.smsConsent": text({
     group: "content",
     label: "문자 수신 동의 안내",
