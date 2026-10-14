@@ -24,16 +24,33 @@
 - 신청기기 → 행사 내용에 메모로 남긴다.
 - 신청등록일 → 접수일
 
-## 처음 한 번: 노션 통합 만들기
+## 처음 한 번: 노션 API 토큰 만들기
 
-1. https://www.notion.so/profile/integrations 에서 **새 통합**을 만든다.
-   - 종류: 내부(Internal)
-   - 기능: **콘텐츠 읽기**만 켠다. 쓰기는 필요 없다.
-2. 만든 통합의 **내부 통합 시크릿**(`ntn_…` 또는 `secret_…`)을 복사한다. 비밀번호처럼 다룬다.
-3. 노션에서 아래 데이터베이스 세 곳 모두 **⋯ → 연결 → 방금 만든 통합**을 추가한다. 관계된 공간·단체 이름을 읽으려면 세 곳 다 연결해야 한다.
-   - 대관 신청 목록
-   - 전태일기념관 공간
-   - 이용 단체
+노션은 이전의 "통합(integration)"을 **연결(connection)**로 바꾸고, 토큰을 **개발자 포털**에서 만들게 했다(2026-10 확인).
+두 방법 중 하나를 쓴다. 어느 쪽이든 토큰은 비밀번호처럼 다룬다.
+
+### 방법 A (권장): 개인 액세스 토큰(PAT)
+
+토큰을 만든 사람의 권한으로 읽는다. 그래서 그 사람이 세 데이터베이스를 볼 수 있으면 **따로 연결할 필요가 없다**.
+
+1. 노션 **개발자 포털 → Personal access tokens → New token**을 누른다.
+2. 이름을 넣고 기능은 **Notion API**를 고른다. 워크스페이스를 고르라고 하면 기념관 워크스페이스를 고른다. 그다음 **Create token**을 누른다.
+3. 토큰은 한 번만 보이니 바로 복사한다.
+   - 만료일을 정하지 않으면 1년 뒤 만료된다. 다시 가져올 때 만료됐다면 새로 만든다.
+- Business·Enterprise 요금제는 PAT 생성이 기본으로 막혀 있다. 이 경우 워크스페이스 소유자가 **설정 → 연결(Connections)**에서 허용해야 한다.
+- 토큰을 만든 사람이 퇴사하거나 PAT 권한이 회수되면 그 토큰은 동작하지 않는다.
+
+### 방법 B: 내부 연결(Internal connection)
+
+담당자가 바뀌어도 계속 쓸 토큰이 필요할 때 쓴다. **워크스페이스 소유자**만 만들 수 있다.
+
+1. 노션 **개발자 포털 → Build → Internal connections**에서 새 연결을 만들고 기념관 워크스페이스를 고른다.
+   - 노션 앱의 **설정 → 연결(Connections)**에서도 만들 수 있다.
+   - 기능(capabilities)은 **콘텐츠 읽기**만 켠다.
+2. **Configuration** 탭에서 API 토큰(`ntn_…`)을 복사한다.
+3. 이 연결에 데이터 접근 권한을 준다. 다음 세 데이터베이스 모두 필요하다(관계된 공간·단체 이름을 읽기 위해).
+   - 대관 신청 목록, 전태일기념관 공간, 이용 단체
+   - 각 데이터베이스의 **••• → 연결 추가(Add connections)**에서 방금 만든 연결을 고른다. 세 데이터베이스를 담은 상위 페이지에 한 번 추가해도 된다(하위 페이지에 함께 적용된다).
 
 ## 실행 (운영 서버)
 
@@ -42,11 +59,11 @@ cd /srv/taeil/deploy
 C="sudo docker compose -f docker-compose.prod.yml --env-file .env"
 
 # 1) 미리보기: 저장하지 않고 결과만 본다
-$C run --rm --no-deps -e NOTION_TOKEN='<통합 시크릿>' web pnpm import:notion
+$C run --rm --no-deps -e NOTION_TOKEN='<노션 토큰>' web pnpm import:notion
 
 # 2) 결과가 괜찮으면 백업 후 저장
 sudo ./backup.sh
-$C run --rm --no-deps -e NOTION_TOKEN='<통합 시크릿>' web pnpm import:notion --apply
+$C run --rm --no-deps -e NOTION_TOKEN='<노션 토큰>' web pnpm import:notion --apply
 ```
 
 옵션
