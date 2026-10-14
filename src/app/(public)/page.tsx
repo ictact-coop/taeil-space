@@ -17,28 +17,33 @@ export default async function GuidePage() {
 
   return (
     <>
-      <section className="bg-navy text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1fr_auto] md:items-center md:py-20">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.2em] text-[#e98b6f]">SPACE RENTAL · 2026</p>
-            <h1 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">
+      <section
+        className="relative bg-[#5795c6] bg-[length:auto_360px] bg-right-bottom bg-no-repeat md:bg-cover"
+        style={{ backgroundImage: "url(/images/hero.jpg)" }}
+        aria-label="전태일기념관 대관 안내"
+      >
+        {/* 좁은 화면: 글·버튼 아래에 그림(건물)이 보이도록 아래 여백을 둔다. 그림 위쪽 하늘색과 배경색이 같아 이음새가 없다 */}
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 pt-8 pb-[290px] sm:px-6 md:min-h-[600px] md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 md:pt-16 md:pb-10">
+          <div className="max-w-xl self-start rounded-2xl bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+            <p className="text-xs font-semibold tracking-[0.2em] text-brick">SPACE RENTAL · 2026</p>
+            <h1 className="mt-3 font-serif text-4xl leading-tight text-navy-deep sm:text-5xl">
               모임의 뜻이
               <br />
-              <span className="text-[#e98b6f]">이어지는 공간</span>
+              <span className="text-brick-dark">이어지는 공간</span>
             </h1>
-            <p className="mt-5 max-w-xl text-white/85">
+            <p className="mt-4 text-ink">
               전태일기념관의 공간과 일정을 확인하고 온라인으로 대관을 신청하세요. 신청은 {word} 후 담당자 심사를 거쳐 확정됩니다.
             </p>
           </div>
-          <div className="flex flex-col items-stretch gap-3 border-white/20 md:w-80 md:border-l md:pl-10">
+          <div className="flex flex-col items-stretch gap-3 md:self-end">
             <Link
               href="/apply"
-              className="flex items-center justify-center gap-3 rounded-lg bg-brick px-8 py-7 text-2xl font-bold text-white shadow-lg ring-1 ring-white/10 transition hover:bg-brick-dark focus-visible:outline-offset-4 sm:text-3xl"
+              className="flex items-center justify-center gap-3 rounded-lg bg-brick px-8 py-6 text-2xl font-bold text-white shadow-lg transition hover:bg-brick-dark focus-visible:outline-offset-4 sm:text-3xl"
             >
               대관 신청
               <span aria-hidden>→</span>
             </Link>
-            <a href="#rules" className="btn self-center border border-white/50 px-4 py-2 text-sm text-white hover:bg-white/10 md:self-stretch">
+            <a href="#rules" className="btn self-center border border-navy/40 bg-white/80 px-4 py-2 text-sm text-navy hover:bg-white md:self-stretch">
               이용규정 보기
             </a>
           </div>
