@@ -1,4 +1,5 @@
 import { and, asc, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
+import { toCsv } from "@/lib/csv";
 import { applications, payments, refunds, spaces } from "@/server/db/schema";
 import type { DbOrTx } from "@/server/db/types";
 
@@ -241,7 +242,7 @@ export async function getPerformanceReport(
 /** 이용시간 표시: 소수 첫째 자리까지 */
 export const formatHours = (h: number) => (Math.round(h * 10) / 10).toLocaleString("ko-KR");
 
-/** 엑셀에서 바로 열 수 있는 CSV (UTF-8 BOM). 공간별 이용 건수·시간을 열로 붙인다. */
+/** 엑셀에서 바로 열 수 있는 CSV. 공간별 이용 건수·시간을 열로 붙인다. */
 export function performanceCsv(report: PerformanceReport): string {
   const header = [
     "기간",
@@ -278,12 +279,7 @@ export function performanceCsv(report: PerformanceReport): string {
     r.revenue.net,
   ];
   const lines = [header, ...report.rows.map((r) => line(r.label, r.range, r)), line("합계", "", report.total)];
-  const cell = (v: string | number) => {
-    // 수식으로 해석되지 않게(공간 이름이 = + - @ 로 시작하는 경우)
-    const s = typeof v === "string" && /^[=+\-@]/.test(v) ? `'${v}` : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return `﻿${lines.map((l) => l.map(cell).join(",")).join("\r\n")}\r\n`;
+  return toCsv(lines);
 }
 
 export type ReportParams = { granularity: "month"; year: number } | { granularity: "week"; year: number; month: number };

@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { kstStartOfDay } from "@/lib/time";
 import { applicationStatusHistory, applications, attachments, organizations, payments, refunds, slotOccupancies, spaces, adminUsers } from "@/server/db/schema";
 import type { DbOrTx } from "@/server/db/types";
 import type { ApplicationStatus } from "./transition";
@@ -22,24 +23,57 @@ const PAGE_SIZE = 30;
 
 const submittedOrCreated = sql`coalesce(${applications.submittedAt}, ${applications.createdAt})`;
 
-export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string; q: string; page: number }) {
-  const key = legacyTabs[params.tab] ?? params.tab;
-  const tab = statusTabs.find((t) => t.key === key) ?? statusTabs[0]!;
+/** 신청 관리 목록 필터: 상태 탭, 검색어, 이용일 기간(KST, 포함), 공간 */
+export interface AdminListFilter {
+  tab: string;
+  q: string;
+  from?: string;
+  to?: string;
+  spaceId?: string;
+}
+
+const isDate = (v: string | undefined): v is string => Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)));
+const isUuid = (v: string | undefined): v is string => Boolean(v && /^[0-9a-f-]{36}$/i.test(v));
+
+/** 화면 주소의 필터 값을 검사해 정리한다(잘못된 값은 무시) */
+export function normalizeAdminFilter(f: Partial<Record<keyof AdminListFilter, string | undefined>>): AdminListFilter {
+  const key = legacyTabs[f.tab ?? ""] ?? f.tab ?? "pending";
+  const tab = (statusTabs.find((t) => t.key === key) ?? statusTabs[0]!).key;
+  return {
+    tab,
+    q: (f.q ?? "").trim().slice(0, 100),
+    from: isDate(f.from) ? f.from : undefined,
+    to: isDate(f.to) ? f.to : undefined,
+    spaceId: isUuid(f.spaceId) ? f.spaceId : undefined,
+  };
+}
+
+function adminListWhere(f: AdminListFilter): SQL | undefined {
+  const tab = statusTabs.find((t) => t.key === f.tab) ?? statusTabs[0]!;
   const conds: SQL[] = [];
   if (tab.statuses.length > 0) conds.push(inArray(applications.status, tab.statuses));
-  const q = params.q.trim();
-  if (q) {
-    const like = `%${q.replace(/[%_]/g, "")}%`;
+  if (f.q) {
+    const like = `%${f.q.replace(/[%_]/g, "")}%`;
     conds.push(or(ilike(applications.applicationNo, like), ilike(applications.orgName, like), ilike(applications.eventTitle, like), ilike(applications.contactName, like))!);
   }
-  const where = conds.length ? and(...conds) : undefined;
+  if (f.from) conds.push(gte(applications.startsAt, kstStartOfDay(f.from)));
+  if (f.to) conds.push(lt(applications.startsAt, new Date(kstStartOfDay(f.to).getTime() + 86_400_000)));
+  if (f.spaceId) conds.push(eq(applications.spaceId, f.spaceId));
+  return conds.length ? and(...conds) : undefined;
+}
+
+// 확인 필요는 입금 확인 순(오래된 것부터), 나머지는 최근 신청이 위(노션에서 가져온 신청은 노션 신청등록일 기준)
+const listOrder = (tab: string) => (tab === "review" ? [asc(applications.paidAt)] : [desc(submittedOrCreated), desc(applications.createdAt)]);
+
+export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilter & { page: number }) {
+  const f = normalizeAdminFilter(params);
+  const where = adminListWhere(f);
   const rows = await db
     .select({ app: applications, spaceName: spaces.name })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(where)
-    // 확인 필요는 입금 확인 순(오래된 것부터), 나머지는 최근 신청이 위(노션에서 가져온 신청은 노션 신청등록일 기준)
-    .orderBy(...(tab.key === "review" ? [asc(applications.paidAt)] : [desc(submittedOrCreated), desc(applications.createdAt)]))
+    .orderBy(...listOrder(f.tab))
     .limit(PAGE_SIZE)
     .offset((Math.max(1, params.page) - 1) * PAGE_SIZE);
   const counts = await db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status);
@@ -47,7 +81,41 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: { tab: string
     statusTabs.map((t) => [t.key, counts.filter((c) => t.statuses.length === 0 || t.statuses.includes(c.status)).reduce((s, c) => s + c.n, 0)]),
   );
   const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(applications).where(where);
-  return { rows, tab: tab.key, tabCounts, pageSize: PAGE_SIZE, total, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+  return { rows, tab: f.tab, tabCounts, pageSize: PAGE_SIZE, total, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+}
+
+export const EXPORT_LIMIT = 10_000;
+
+/** 내려받기용: 필터에 맞는 신청 전체(페이지 없이, 최대 EXPORT_LIMIT건)와 단체·결제·환불 요약 */
+export async function listApplicationsForExport(db: DbOrTx, filter: AdminListFilter) {
+  const f = normalizeAdminFilter(filter);
+  const rows = await db
+    .select({ app: applications, spaceName: spaces.name, org: organizations })
+    .from(applications)
+    .innerJoin(spaces, eq(spaces.id, applications.spaceId))
+    .leftJoin(organizations, eq(organizations.id, applications.organizationId))
+    .where(adminListWhere(f))
+    .orderBy(...listOrder(f.tab))
+    .limit(EXPORT_LIMIT);
+  const ids = rows.map((r) => r.app.id);
+  const pays = ids.length
+    ? await db.select({ applicationId: payments.applicationId, method: payments.method, status: payments.status, amount: payments.amount, paidAt: payments.paidAt }).from(payments).where(inArray(payments.applicationId, ids))
+    : [];
+  const refs = ids.length
+    ? await db.select({ applicationId: refunds.applicationId, amount: refunds.amount, status: refunds.status }).from(refunds).where(inArray(refunds.applicationId, ids))
+    : [];
+  return rows.map((r) => {
+    const myPays = pays.filter((p) => p.applicationId === r.app.id);
+    const paid = myPays.filter((p) => p.status === "paid");
+    const myRefs = refs.filter((x) => x.applicationId === r.app.id);
+    return {
+      ...r,
+      method: (paid[0] ?? myPays[0])?.method ?? null,
+      paidAmount: paid.reduce((s, p) => s + p.amount, 0),
+      refundedAmount: myRefs.filter((x) => x.status === "succeeded").reduce((s, x) => s + x.amount, 0),
+      refundPendingAmount: myRefs.filter((x) => x.status !== "succeeded").reduce((s, x) => s + x.amount, 0),
+    };
+  });
 }
 
 export async function getApplicationForAdmin(db: DbOrTx, applicationNo: string) {
