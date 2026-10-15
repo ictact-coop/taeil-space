@@ -16,7 +16,9 @@ export type NotificationEvent =
   /** 계좌이체: 신청 직후 입금 안내 */
   | "awaiting_deposit"
   /** 계좌이체: 입금 기한 임박 */
-  | "deposit_reminder";
+  | "deposit_reminder"
+  /** 관리자가 신청 정보를 고침(reason에 바뀐 항목) */
+  | "updated";
 
 export interface MessageContext {
   applicationNo: string;
@@ -111,6 +113,11 @@ export function applicantMessage(event: NotificationEvent, c: MessageContext): {
       return {
         subject: `[전태일기념관] 입금 기한이 곧 끝납니다 (${c.applicationNo})`,
         body: `${head}\n입금 금액: ${formatWon(c.total)} (부가세 포함)\n입금 기한: ${c.depositDeadline ?? ""}\n\n[입금 계좌]\n${c.bankAccountInfo?.trim() || "기념관에서 따로 안내해 드립니다."}${c.depositorGuide?.trim() ? `\n${c.depositorGuide.trim()}` : ""}\n\n이미 입금하셨다면 담당자가 확인하는 중이니 기다려 주세요. 기한 안에 입금이 확인되지 않으면 신청은 자동 취소됩니다.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
+      };
+    case "updated":
+      return {
+        subject: `[전태일기념관] 대관 신청 정보가 변경되었습니다 (${c.applicationNo})`,
+        body: `${head}\n금액: ${formatWon(c.total)} (부가세 포함)\n\n담당자가 신청 정보를 아래와 같이 변경했습니다.\n\n${c.reason ?? ""}\n\n내용이 다르면 기념관으로 연락해 주세요.\n\n신청 내역 보기: ${c.myUrl}${footer}`,
       };
     case "revision_submitted":
       return { subject: `[전태일기념관] 보완 내용이 제출되었습니다 (${c.applicationNo})`, body: `${head}\n\n보완 내용이 제출되어 다시 심사합니다.${footer}` };
