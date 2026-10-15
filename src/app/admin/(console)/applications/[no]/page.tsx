@@ -93,6 +93,11 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
               <span className="text-sm text-muted">
                 {space.name} · {formatKst(app.startsAt)}–{formatKst(app.endsAt).slice(-5)}
               </span>
+              {canReview && (
+                <Link href={`/admin/applications/${app.applicationNo}/edit`} className="btn-secondary ml-auto px-3 py-1 text-sm">
+                  정보 수정
+                </Link>
+              )}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
               <Row label="단체">

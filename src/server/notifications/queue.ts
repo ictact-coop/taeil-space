@@ -20,6 +20,8 @@ const settingKeyFor: Record<NotificationEvent, keyof SettingValues> = {
   payment_expired: "notification.cancelled",
   awaiting_deposit: "notification.submitted",
   deposit_reminder: "notification.paymentDeadline",
+  // 관리자가 고를 때만 보낸다. 채널(메일·문자)은 신청 접수 알림 설정을 따른다
+  updated: "notification.submitted",
 };
 
 /** 안내 문구 자리표시자 값 */
