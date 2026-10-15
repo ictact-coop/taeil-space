@@ -5,18 +5,29 @@ import { Notice, PageHeader } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { formatWon } from "@/domain/pricing/fee-schedule";
 import { formatKst } from "@/lib/time";
-import { listApplicationsForAdmin, statusTabs } from "@/server/applications/admin-queries";
+import { listApplicationsForAdmin, normalizeAdminFilter, statusTabs } from "@/server/applications/admin-queries";
 import { requireAdmin } from "@/server/auth/current";
 import { db } from "@/server/db/client";
+import { spaces } from "@/server/db/schema";
 
 export const metadata: Metadata = { title: "신청 관리" };
 
-export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; done?: string }> }) {
+export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; from?: string; to?: string; space?: string; page?: string; done?: string }> }) {
   await requireAdmin("applications.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const { rows, tab, tabCounts, pageCount, total } = await listApplicationsForAdmin(db, { tab: sp.tab ?? "pending", q: sp.q ?? "", page });
-  const link = (params: Record<string, string>) => `/admin/applications?${new URLSearchParams({ tab, ...(sp.q ? { q: sp.q } : {}), ...params }).toString()}`;
+  const filter = normalizeAdminFilter({ tab: sp.tab, q: sp.q, from: sp.from, to: sp.to, spaceId: sp.space });
+  const [{ rows, tab, tabCounts, pageCount, total }, spaceList] = await Promise.all([
+    listApplicationsForAdmin(db, { ...filter, page }),
+    db.select({ id: spaces.id, name: spaces.name }).from(spaces).orderBy(spaces.sortOrder, spaces.name),
+  ]);
+  // 탭·페이지를 바꿔도 검색어·기간·공간 필터는 유지한다
+  const kept: Record<string, string> = Object.fromEntries(
+    Object.entries({ q: filter.q, from: filter.from, to: filter.to, space: filter.spaceId }).filter((e): e is [string, string] => Boolean(e[1])),
+  );
+  const link = (params: Record<string, string>) => `/admin/applications?${new URLSearchParams({ tab, ...kept, ...params }).toString()}`;
+  const exportLink = (kind?: string) => `/admin/api/applications/export?${new URLSearchParams({ tab, ...kept, ...(kind ? { kind } : {}) }).toString()}`;
+  const filtered = Object.keys(kept).length > 0;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -31,7 +42,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
           {statusTabs.filter((t) => !t.onlyWhenNonEmpty || (tabCounts[t.key] ?? 0) > 0 || t.key === tab).map((t) => (
             <Link
               key={t.key}
-              href={`/admin/applications?${new URLSearchParams({ tab: t.key, ...(sp.q ? { q: sp.q } : {}) }).toString()}`}
+              href={`/admin/applications?${new URLSearchParams({ tab: t.key, ...kept }).toString()}`}
               aria-current={t.key === tab ? "page" : undefined}
               className={`rounded px-3 py-1.5 text-sm ${t.key === tab ? "bg-navy text-white" : "bg-white text-ink hover:bg-cream"}`}
             >
@@ -39,17 +50,50 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
             </Link>
           ))}
         </nav>
-        <form className="flex gap-2">
-          <input type="hidden" name="tab" value={tab} />
-          <label htmlFor="q" className="sr-only">
-            검색
-          </label>
-          <input id="q" name="q" defaultValue={sp.q} placeholder="신청번호·단체명·행사명·담당자" className="input w-64" />
-          <button type="submit" className="btn-secondary">
-            검색
-          </button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          <a href={exportLink()} className="btn-secondary text-sm">
+            목록 내려받기(CSV)
+          </a>
+          <a href={exportLink("receipts")} className="btn-secondary text-sm">
+            증빙 발행 정보 내려받기(CSV)
+          </a>
+        </div>
       </div>
+      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-white p-3 text-sm">
+        <input type="hidden" name="tab" value={tab} />
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted">검색</span>
+          <input name="q" defaultValue={filter.q} placeholder="신청번호·단체명·행사명·담당자" className="input w-60" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted">이용일 시작</span>
+          <input type="date" name="from" defaultValue={filter.from} className="input" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted">이용일 끝</span>
+          <input type="date" name="to" defaultValue={filter.to} className="input" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted">공간</span>
+          <select name="space" defaultValue={filter.spaceId ?? ""} className="input">
+            <option value="">전체</option>
+            {spaceList.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="btn-secondary">
+          적용
+        </button>
+        {filtered && (
+          <Link href={`/admin/applications?tab=${tab}`} className="btn-ghost">
+            필터 지우기
+          </Link>
+        )}
+        <span className="ml-auto self-center text-xs text-muted">내려받기는 지금 탭과 필터를 그대로 적용합니다(페이지와 무관하게 전체).</span>
+      </form>
       <div className="overflow-x-auto rounded-lg border border-line bg-white">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="bg-cream text-xs text-muted">
