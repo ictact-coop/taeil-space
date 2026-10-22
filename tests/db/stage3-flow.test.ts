@@ -369,7 +369,7 @@ describe.skipIf(!hasTestDb)("관리자 조회", () => {
       const detail = await getApplicationForAdmin(db, "R202611-00001");
       expect(detail?.history.map((h) => h.actorName)).toEqual([null, admin.name]);
       expect((await listApplicationsForAdmin(db, { tab: "todo", q: "단체", page: 1 })).rows).toHaveLength(1); // 예전 주소 → 확인 필요
-      // 상태 분류: 입금 대기·확인 필요·예약 확정·반려·전체
+      // 상태 분류: 입금 대기·미입금·확인 필요·예약 확정·반려·전체
       const more = (no: string, status: (typeof applications.$inferInsert)["status"]) => ({
         applicationNo: no, status, spaceId: space.id, orgName: "기타", contactName: "담당", contactPhone: "01000000000", contactEmail: "a@b.c",
         eventTitle: "행사", eventPurpose: "목적", expectedHeadcount: 5, startsAt: new Date("2026-12-01T01:00:00Z"), endsAt: new Date("2026-12-01T02:00:00Z"),
@@ -377,7 +377,7 @@ describe.skipIf(!hasTestDb)("관리자 조회", () => {
       await db.insert(applications).values([more("R-T-1", "pending_payment"), more("R-T-2", "confirmed"), more("R-T-3", "completed"), more("R-T-4", "rejected"), more("R-T-5", "withdrawn")]);
       const list = await listApplicationsForAdmin(db, { tab: "", q: "", page: 1 });
       expect(list.tab).toBe("pending"); // 기본은 입금 대기
-      expect(list.tabCounts).toEqual({ pending: 1, review: 1, confirmed: 2, rejected: 1, all: 6 });
+      expect(list.tabCounts).toEqual({ pending: 1, unpaid: 0, review: 1, confirmed: 2, rejected: 1, all: 6 });
       expect((await listApplicationsForAdmin(db, { tab: "confirmed", q: "", page: 1 })).rows.map((r) => r.app.applicationNo).sort()).toEqual(["R-T-2", "R-T-3"]);
       // 입금 대기는 최근 신청이 위(신청일이 없으면 생성 시각)
       await db.insert(applications).values([

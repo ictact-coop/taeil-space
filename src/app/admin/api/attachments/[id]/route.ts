@@ -10,7 +10,7 @@ import { getStorage } from "@/server/storage/storage";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const current = await getCurrentAdmin();
   if (!current?.session.mfaVerified) return new Response("로그인이 필요합니다.", { status: 401 });
-  if (!hasPermission(adminPermissions(current), "applications.view")) return new Response("권한이 없습니다.", { status: 403 });
+  if (!hasPermission(adminPermissions(current), "applications.download")) return new Response("권한이 없습니다.", { status: 403 });
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) return new Response("Not found", { status: 404 });
   const [file] = await db.select().from(attachments).where(eq(attachments.id, id));

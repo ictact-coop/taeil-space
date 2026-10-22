@@ -35,8 +35,9 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
   const { application: app, spaceName, payment, files } = found;
   const settings = await getSettings(db);
   const expiresAt = found.holdExpiresAt;
-  const pending = app.status === "pending_payment" && expiresAt !== null && expiresAt > new Date();
   const bank = payment?.method === "bank_transfer";
+  const overdue = expiresAt !== null && expiresAt <= new Date();
+  const pending = app.status === "pending_payment" && expiresAt !== null && (bank || !overdue);
   // 지금 설정값(오타 수정 등 반영)을 쓰고, 비어 있으면 신청 당시 안내된 값을 쓴다(알림 메일과 같은 규칙)
   const bankInfo =
     settings["payment.bankAccountInfo"].trim() ||
@@ -77,10 +78,9 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
           </>
         ) : app.status === "pending_payment" && bank ? (
           <>
-            <h1 className="mt-2 font-serif text-2xl text-navy">신청을 받았습니다. 입금해 주세요</h1>
+            <h1 className="mt-2 font-serif text-2xl text-navy">{overdue ? "입금 기한이 지났습니다. 입금을 확인해 주세요" : "신청을 받았습니다. 입금해 주세요"}</h1>
             <p className="mt-2 text-sm text-muted">
-              입금 기한까지 이 일정을 다른 신청자가 고를 수 없도록 잡아 두었습니다. 담당자가 입금을 확인하면 신청이 접수되고 심사를 시작합니다. 기한 안에 입금이 확인되지
-              않으면 신청이 자동 취소됩니다. 입금 안내는 이메일({app.contactEmail})로도 보냈습니다.
+              입금 기한까지 이 일정을 다른 신청자가 고를 수 없도록 잡아 두었습니다. 담당자가 입금을 확인하면 신청이 접수되고 심사를 시작합니다. 기한이 지나도 신청과 일정은 유지되며 미입금으로 관리됩니다. 입금 안내는 이메일({app.contactEmail})로도 보냈습니다.
             </p>
           </>
         ) : app.status === "pending_payment" ? (
@@ -108,7 +108,7 @@ export default async function PayPage({ params }: { params: Promise<{ no: string
             <>
               <dt className="text-muted">{word} 기한</dt>
               <dd>
-                {formatKst(expiresAt)}까지 · <Countdown until={expiresAt.toISOString()} />
+                {formatKst(expiresAt)}까지 · {bank && overdue ? "미입금 — 신청과 일정이 유지됩니다. 입금 관련 사항은 담당자에게 문의해 주세요." : <Countdown until={expiresAt.toISOString()} />}
               </dd>
             </>
           )}

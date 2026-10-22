@@ -16,15 +16,15 @@ const consentAt = (app: ExportRow["app"]) => Boolean((app.consents as Record<str
 export function applicationsCsv(rows: ExportRow[]): string {
   const header = [
     "신청번호", "상태", "공간", "이용일", "시작", "종료", "단체명", "단체번호 종류", "단체번호", "담당자", "휴대전화", "이메일",
-    "행사명", "예상 인원", "행사 목적·내용", "금액(원, 부가세 포함)", "감면", "결제 방식", "받은 금액(원)", "환불 완료(원)", "환불 처리 중(원)",
-    "입금·결제 확인", "신청일시", "증빙 발행 희망", "문자 수신 동의", "노션에서 가져옴",
+    "행사명", "예상 인원", "행사 목적·내용", "금액(원, 부가세 포함)", "감면", "결제 방식", "받은 금액(원)", "입금·결제 누계(원)", "환불 완료(원)", "환불 처리 중(원)",
+    "입금·결제 확인", "신청일시", "입금자명", "문자 수신 동의", "노션에서 가져옴",
+    ...receiptHeaders,
   ];
-  const lines = rows.map(({ app, spaceName, org, method, paidAmount, refundedAmount, refundPendingAmount }) => {
+  const lines = rows.map(({ app, spaceName, org, method, paidAmount, refundedAmount, refundPendingAmount, depositorName, isOverdue }) => {
     const discount = (app.policySnapshot as { discount?: { name: string } | null } | null)?.discount?.name ?? "";
-    const receipt = app.receiptRequest as ReceiptRequest | null;
     return [
       app.applicationNo,
-      statusLabels[app.status],
+      isOverdue ? "미입금" : statusLabels[app.status],
       spaceName,
       kstDateOf(app.startsAt),
       time(app.startsAt),
@@ -41,14 +41,16 @@ export function applicationsCsv(rows: ExportRow[]): string {
       app.totalAmount ?? 0,
       discount,
       method ? methodLabels[method] : "",
+      Math.max(0, paidAmount - refundedAmount - refundPendingAmount),
       paidAmount,
       refundedAmount,
       refundPendingAmount,
       app.paidAt ? formatKst(app.paidAt) : "",
       formatKst(app.submittedAt ?? app.createdAt),
-      !receipt ? "" : receipt.type === "cash" ? "현금영수증" : "세금계산서",
+      depositorName,
       consentAt(app) ? "동의" : "",
       app.importRef ? "예" : "",
+      ...receiptCells({ app, spaceName, paidAmount, refundedAmount, refundPendingAmount }),
     ];
   });
   return toCsv([header, ...lines]);
@@ -60,32 +62,24 @@ export function splitVat(total: number): { supply: number; vat: number } {
   return { supply, vat: total - supply };
 }
 
-/**
- * 현금영수증·세금계산서 발행 정보 내려받기: 필터에 맞는 신청 중 발행을 희망한 건만.
- * 발행 금액 = 받은 금액 − 환불(완료·처리 중). 아직 입금 전이면 신청 금액을 적고 '입금 전'으로 표시한다.
- */
-export function receiptsCsv(rows: ExportRow[]): string {
-  const header = [
-    "구분", "신청번호", "상태", "입금 확인", "이용일", "공간", "단체명", "담당자", "담당자 휴대전화",
-    "현금영수증 용도", "현금영수증 번호(휴대전화·사업자번호)",
-    "사업자등록번호", "상호(법인명)", "대표자", "받을 이메일", "사업장 주소", "업태", "종목",
-    "발행 금액(원, 합계)", "공급가액(원)", "세액(원)", "품목", "비고",
-  ];
-  const lines = rows
-    .filter((r) => r.app.receiptRequest)
-    .map(({ app, spaceName, paidAmount, refundedAmount, refundPendingAmount }) => {
-      const r = app.receiptRequest as ReceiptRequest;
-      const paid = paidAmount > 0;
-      const amount = paid ? paidAmount - refundedAmount - refundPendingAmount : (app.totalAmount ?? 0);
-      const { supply, vat } = splitVat(amount);
-      const note = [!paid ? "입금 전" : "", refundedAmount + refundPendingAmount > 0 ? `환불 ${(refundedAmount + refundPendingAmount).toLocaleString("ko-KR")}원 반영` : ""].filter(Boolean).join(", ");
-      const base = [statusLabels[app.status], app.paidAt ? formatKst(app.paidAt) : "", kstDateOf(app.startsAt), spaceName, app.orgName, app.contactName, phone(app.contactPhone)];
-      const item = `대관료(${spaceName}, ${kstDateOf(app.startsAt)})`;
-      if (r.type === "cash") {
-        const number = r.purpose === "income" ? phone(r.number) : formatRegNo(r.number);
-        return ["현금영수증", app.applicationNo, ...base, r.purpose === "income" ? "소득공제" : "지출증빙", number, "", "", "", "", "", "", "", amount, supply, vat, item, note];
-      }
-      return ["세금계산서", app.applicationNo, ...base, "", "", formatRegNo(r.bizNo), r.company, r.ceo, r.email, r.address, r.bizType, r.bizItem, amount, supply, vat, item, note];
-    });
-  return toCsv([header, ...lines]);
+const receiptHeaders = [
+  "증빙 발행 희망", "현금영수증 용도", "현금영수증 번호(휴대전화·사업자번호)",
+  "사업자등록번호", "상호(법인명)", "대표자", "받을 이메일", "사업장 주소", "업태", "종목",
+  "발행 금액(원, 합계)", "공급가액(원)", "세액(원)", "품목", "증빙 비고",
+];
+
+/** 발행 금액은 받은 금액에서 완료·처리 중 환불을 뺀 금액. 입금 전에는 신청 금액을 표시한다. */
+function receiptCells({ app, spaceName, paidAmount, refundedAmount, refundPendingAmount }: Pick<ExportRow, "app" | "spaceName" | "paidAmount" | "refundedAmount" | "refundPendingAmount">) {
+  const r = app.receiptRequest as ReceiptRequest | null;
+  if (!r) return ["미요청", ...Array<string>(receiptHeaders.length - 1).fill("")];
+  const paid = paidAmount > 0;
+  const amount = paid ? paidAmount - refundedAmount - refundPendingAmount : (app.totalAmount ?? 0);
+  const { supply, vat } = splitVat(amount);
+  const note = [!paid ? "입금 전" : "", refundedAmount + refundPendingAmount > 0 ? `환불 ${(refundedAmount + refundPendingAmount).toLocaleString("ko-KR")}원 반영` : ""].filter(Boolean).join(", ");
+  const tail = [amount, supply, vat, `대관료(${spaceName}, ${kstDateOf(app.startsAt)})`, note];
+  if (r.type === "cash") {
+    const number = r.purpose === "income" ? phone(r.number) : formatRegNo(r.number);
+    return ["현금영수증", r.purpose === "income" ? "소득공제" : "지출증빙", number, "", "", "", "", "", "", "", ...tail];
+  }
+  return ["세금계산서", "", "", formatRegNo(r.bizNo), r.company, r.ceo, r.email, r.address, r.bizType, r.bizItem, ...tail];
 }

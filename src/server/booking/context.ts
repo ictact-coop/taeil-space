@@ -93,7 +93,7 @@ export interface BusyInterval {
   kind: "pending_payment" | "held" | "confirmed" | "block";
 }
 
-/** 기간과 겹치는 유효한 점유 (만료된 결제대기는 빈 것으로 본다) */
+/** 기간과 겹치는 유효한 점유 (만료된 PG 결제대기는 빈 것으로 보고, 미입금 계좌이체는 계속 점유한다) */
 export async function loadBusyIntervals(
   db: DbOrTx,
   spaceId: string,
@@ -113,7 +113,7 @@ export async function loadBusyIntervals(
       and(
         eq(slotOccupancies.spaceId, spaceId),
         sql`${slotOccupancies.during} && tstzrange(${from.toISOString()}::timestamptz, ${to.toISOString()}::timestamptz, '[)')`,
-        or(isNull(slotOccupancies.expiresAt), gt(slotOccupancies.expiresAt, now)),
+        or(isNull(slotOccupancies.expiresAt), gt(slotOccupancies.expiresAt, now), sql`exists (select 1 from payments p where p.application_id = ${slotOccupancies.applicationId} and p.method = 'bank_transfer')`),
         excludeApplicationId ? or(isNull(slotOccupancies.applicationId), ne(slotOccupancies.applicationId, excludeApplicationId)) : undefined,
       ),
     );
