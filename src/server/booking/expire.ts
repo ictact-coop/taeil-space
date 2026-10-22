@@ -4,6 +4,9 @@ import { applications, applicationStatusHistory, payments, slotOccupancies } fro
 import { enqueueApplicationNotification } from "@/server/notifications/queue";
 import type { Db, DbOrTx } from "@/server/db/types";
 
+// 계좌이체는 기한이 지나도 담당자가 처리할 때까지 신청·일정 점유를 유지한다.
+const NOT_BANK_TRANSFER = sql`not exists (select 1 from payments p where p.application_id = ${slotOccupancies.applicationId} and p.method = 'bank_transfer')`;
+
 const NOT_IMPORTED = sql`not exists (select 1 from applications a where a.id = ${slotOccupancies.applicationId} and a.import_ref is not null)`;
 
 /** 결제대기 → 미결제취소 처리 (한 건) */
@@ -37,13 +40,13 @@ async function expireOne(tx: DbOrTx, applicationId: string, now: Date): Promise<
   return true;
 }
 
-/** 결제 유효시간이 지난 신청을 모두 미결제취소로 바꾸고 일정을 다시 연다 (AT-08). 작업 큐가 1분마다 실행한다. */
+/** PG 결제 유효시간이 지난 신청을 미결제취소로 바꾸고 일정을 다시 연다 (AT-08). 작업 큐가 1분마다 실행한다. */
 export async function expirePendingApplications(db: Db, now: Date = new Date()): Promise<number> {
   const due = await db
     .select({ applicationId: slotOccupancies.applicationId })
     .from(slotOccupancies)
     // 다른 곳(노션)에서 가져온 신청은 자동 취소하지 않는다(담당자가 처리)
-    .where(and(eq(slotOccupancies.kind, "pending_payment"), isNotNull(slotOccupancies.expiresAt), lte(slotOccupancies.expiresAt, now), NOT_IMPORTED))
+    .where(and(eq(slotOccupancies.kind, "pending_payment"), isNotNull(slotOccupancies.expiresAt), lte(slotOccupancies.expiresAt, now), NOT_IMPORTED, NOT_BANK_TRANSFER))
     .limit(500);
   let count = 0;
   for (const { applicationId } of due) {
@@ -70,6 +73,7 @@ export async function releaseExpiredOverlapping(tx: DbOrTx, spaceId: string, fro
         eq(slotOccupancies.kind, "pending_payment"),
         lte(slotOccupancies.expiresAt, now),
         NOT_IMPORTED,
+        NOT_BANK_TRANSFER,
         sql`${slotOccupancies.during} && tstzrange(${from.toISOString()}::timestamptz, ${to.toISOString()}::timestamptz, '[)')`,
       ),
     );

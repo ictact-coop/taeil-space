@@ -96,6 +96,7 @@ export default async function MyApplicationPage({
               <dt className="text-muted">입금 기한</dt>
               <dd>
                 {formatKst(view.holdExpiresAt)}까지
+                {view.holdExpiresAt <= new Date() && <span className="block text-xs text-warning">미입금 — 신청과 일정은 유지됩니다. 담당자에게 입금 관련 사항을 문의해 주세요.</span>}
                 <span className="block text-xs text-muted">{fillTemplate(settings["payment.depositorNameGuide"], templateVars(a, spaceName))}</span>
               </dd>
             </>

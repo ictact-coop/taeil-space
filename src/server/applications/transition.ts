@@ -8,7 +8,7 @@ export type ApplicationRow = typeof applications.$inferSelect;
 
 /** 허용되는 상태 전이 (계획서 2.3) */
 const allowed: Partial<Record<ApplicationStatus, readonly ApplicationStatus[]>> = {
-  pending_payment: ["submitted", "payment_expired", "withdrawn"],
+  pending_payment: ["submitted", "payment_expired", "withdrawn", "rejected"],
   submitted: ["reviewing", "revision_requested", "rejected", "confirmed", "withdrawn"],
   reviewing: ["revision_requested", "rejected", "confirmed", "withdrawn"],
   revision_requested: ["reviewing", "rejected", "withdrawn", "closed_revision_expired"],

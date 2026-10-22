@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { hasPermission } from "@/domain/auth/permissions";
 import { pageNumbers } from "@/lib/pagination";
 import { Notice, PageHeader } from "@/components/admin/ui";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -13,7 +14,8 @@ import { spaces } from "@/server/db/schema";
 export const metadata: Metadata = { title: "신청 관리" };
 
 export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; from?: string; to?: string; space?: string; page?: string; done?: string }> }) {
-  await requireAdmin("applications.view");
+  const admin = await requireAdmin("applications.view");
+  const canDownload = hasPermission(admin, "applications.download");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const filter = normalizeAdminFilter({ tab: sp.tab, q: sp.q, from: sp.from, to: sp.to, spaceId: sp.space });
@@ -26,7 +28,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
     Object.entries({ q: filter.q, from: filter.from, to: filter.to, space: filter.spaceId }).filter((e): e is [string, string] => Boolean(e[1])),
   );
   const link = (params: Record<string, string>) => `/admin/applications?${new URLSearchParams({ tab, ...kept, ...params }).toString()}`;
-  const exportLink = (kind?: string) => `/admin/api/applications/export?${new URLSearchParams({ tab, ...kept, ...(kind ? { kind } : {}) }).toString()}`;
+  const exportLink = () => `/admin/api/applications/export?${new URLSearchParams({ tab, ...kept }).toString()}`;
   const filtered = Object.keys(kept).length > 0;
 
   return (
@@ -50,14 +52,13 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
             </Link>
           ))}
         </nav>
-        <div className="flex flex-wrap gap-2">
-          <a href={exportLink()} className="btn-secondary text-sm">
-            목록 내려받기(CSV)
-          </a>
-          <a href={exportLink("receipts")} className="btn-secondary text-sm">
-            증빙 발행 정보 내려받기(CSV)
-          </a>
-        </div>
+        {canDownload && (
+          <div className="flex flex-wrap gap-2">
+            <a href={exportLink()} className="btn-secondary text-sm">
+              목록·증빙 정보 내려받기(CSV)
+            </a>
+          </div>
+        )}
       </div>
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-white p-3 text-sm">
         <input type="hidden" name="tab" value={tab} />
@@ -92,7 +93,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
             필터 지우기
           </Link>
         )}
-        <span className="ml-auto self-center text-xs text-muted">내려받기는 지금 탭과 필터를 그대로 적용합니다(페이지와 무관하게 전체).</span>
+        {canDownload && <span className="ml-auto self-center text-xs text-muted">내려받기는 지금 탭과 필터를 그대로 적용합니다(페이지와 무관하게 전체).</span>}
       </form>
       <div className="overflow-x-auto rounded-lg border border-line bg-white">
         <table className="w-full min-w-[860px] text-left text-sm">
@@ -115,7 +116,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                 </td>
               </tr>
             )}
-            {rows.map(({ app, spaceName }) => (
+            {rows.map(({ app, spaceName, isOverdue }) => (
               <tr key={app.id} className="hover:bg-cream/40">
                 <td className="px-4 py-2">
                   <Link href={`/admin/applications/${app.applicationNo}`} className="font-medium text-navy underline">
@@ -132,7 +133,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                 </td>
                 <td className="px-4 py-2">{formatWon(app.totalAmount ?? 0)}</td>
                 <td className="px-4 py-2">
-                  <StatusBadge status={app.status} />
+                  {isOverdue ? <span className="badge bg-warning/10 text-warning">미입금</span> : <StatusBadge status={app.status} />}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-xs text-muted">{app.paidAt ? formatKst(app.paidAt) : formatKst(app.createdAt)}</td>
               </tr>

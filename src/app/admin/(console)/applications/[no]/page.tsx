@@ -64,12 +64,14 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
   // 개인정보 조회 이력 ([요구] 24장)
   await writeAudit(db, { actorType: "admin", actorId: admin.id, action: "pii.view", targetType: "application", targetId: app.id, ip: admin.ip });
   const [checks, orgHistory, notes, notifications] = await Promise.all([reviewChecks(db, app), organizationHistory(db, app), listNotes(db, app.id), listNotifications(db, app.id)]);
+  const canDownload = hasPermission(admin, "applications.download");
   const canReview = hasPermission(admin, "applications.review");
   const canRefund = hasPermission(admin, "refunds.manage");
   const price = app.priceSnapshot as { items?: { label: string; amount: number }[] } | null;
   const policy = app.policySnapshot as { discount?: { name: string } | null; discountChangedBy?: string } | null;
   const reviewable = ["submitted", "reviewing", "revision_requested"].includes(app.status);
   const pendingBank = app.status === "pending_payment" && data.payments.some((p) => p.method === "bank_transfer" && p.status === "ready");
+  const overdueBank = pendingBank && data.holdExpiresAt !== null && data.holdExpiresAt <= new Date();
   const messageTemplates = canReview ? parseMessageTemplates((await getSettings(db))["content.reviewMessageTemplates"]) : [];
   const vars = templateVars(app, space.name);
   const discountEditable = (DISCOUNT_EDITABLE_STATUSES as readonly string[]).includes(app.status) && Boolean(price?.items?.length);
@@ -84,7 +86,7 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
         <div className="flex flex-col gap-6">
           <Card>
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={app.status} />
+              {overdueBank ? <span className="badge bg-warning/10 text-warning">미입금</span> : <StatusBadge status={app.status} />}
               {app.importRef && (
                 <span className="badge bg-cream-dark text-muted" title="자동 취소·입금 기한 알림을 하지 않습니다. 입금을 확인하거나 반려로 처리하세요.">
                   노션에서 가져옴
@@ -286,9 +288,13 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                 {data.files.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center gap-2 py-1">
                     <span className="text-xs text-muted">{f.kind === "discount_proof" ? "감면 증빙" : f.kind === "event_plan" ? "행사계획서" : "기타"}</span>
-                    <a href={`/admin/api/attachments/${f.id}`} className="text-navy underline">
-                      {f.originalName}
-                    </a>
+                    {canDownload ? (
+                      <a href={`/admin/api/attachments/${f.id}`} className="text-navy underline">
+                        {f.originalName}
+                      </a>
+                    ) : (
+                      <span>{f.originalName}</span>
+                    )}
                     <span className="text-xs text-muted">({Math.ceil(f.size / 1024)}KB)</span>
                     <span className={`badge ${f.scanStatus === "clean" ? "bg-status-green/10 text-status-green" : "bg-warning/10 text-warning"}`}>{scanLabels[f.scanStatus]}</span>
                   </li>
@@ -385,11 +391,11 @@ export default async function ApplicationDetailPage({ params, searchParams }: { 
                     </button>
                   </form>
                 )}
-                {reviewable && (
+                {(reviewable || pendingBank) && (
                   <form action={b(rejectAction, app.applicationNo, app.id)} className="flex flex-col gap-2 border-t border-line pt-3">
                     <TemplateTextarea name="reason" label="반려 사유" templates={messageTemplates} vars={vars} rows={4} />
                     <button type="submit" className="btn border border-danger text-danger hover:bg-danger hover:text-white">
-                      반려 (전액 환불)
+                      {pendingBank ? "미입금 신청 반려 (일정 해제)" : "반려 (전액 환불)"}
                     </button>
                   </form>
                 )}

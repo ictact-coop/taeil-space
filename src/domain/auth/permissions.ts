@@ -4,7 +4,8 @@
  * 다른 등급에는 등급 관리 화면에서 더한다.
  */
 export const permissionDefs = [
-  { key: "applications.view", group: "신청", label: "신청 조회", description: "신청 목록·상세, 첨부 내려받기 (신청자 개인정보 열람)" },
+  { key: "applications.view", group: "신청", label: "신청 조회", description: "신청 목록·상세 (신청자 개인정보 열람)" },
+  { key: "applications.download", group: "신청", label: "자료 다운로드", description: "신청 목록·증빙 발행 정보·환불 내역 CSV, 첨부파일 내려받기", requires: ["applications.view"] },
   { key: "applications.review", group: "신청", label: "신청 심사", description: "검토 시작·보완 요청·반려·승인, 계좌이체 입금 확인, 내부 메모", requires: ["applications.view"] },
   { key: "refunds.manage", group: "신청", label: "환불 처리", description: "환불 목록, 계좌이체 환불 완료 기록, PG 환불 재시도", requires: ["applications.view"] },
   { key: "calendar.view", group: "일정", label: "대관 일정 조회", description: "대관 캘린더, 대시보드의 오늘·이번 주 일정" },

@@ -10,6 +10,7 @@ import type { ApplicationStatus } from "./transition";
  */
 export const statusTabs: { key: string; label: string; statuses: ApplicationStatus[]; onlyWhenNonEmpty?: boolean }[] = [
   { key: "pending", label: "입금 대기", statuses: ["pending_payment"] },
+  { key: "unpaid", label: "미입금", statuses: ["pending_payment"] },
   { key: "review", label: "확인 필요", statuses: ["submitted", "reviewing", "revision_requested"], onlyWhenNonEmpty: true },
   { key: "confirmed", label: "예약 확정", statuses: ["confirmed", "cancel_requested", "completed"] },
   { key: "rejected", label: "반려", statuses: ["rejected"] },
@@ -48,10 +49,19 @@ export function normalizeAdminFilter(f: Partial<Record<keyof AdminListFilter, st
   };
 }
 
+/** 신청은 취소하지 않고 입금 기한이 지난 계좌이체만 별도 분류한다. 워커 실행 여부와 무관하다. */
+const overdueBankPayment = sql<boolean>`(${applications.status} = 'pending_payment' and exists (
+  select 1 from slot_occupancies s join payments p on p.application_id = s.application_id
+  where s.application_id = ${applications.id} and s.kind = 'pending_payment'
+    and s.expires_at <= current_timestamp and p.method = 'bank_transfer' and p.status = 'ready'
+))`;
+
 function adminListWhere(f: AdminListFilter): SQL | undefined {
   const tab = statusTabs.find((t) => t.key === f.tab) ?? statusTabs[0]!;
   const conds: SQL[] = [];
   if (tab.statuses.length > 0) conds.push(inArray(applications.status, tab.statuses));
+  if (f.tab === "unpaid") conds.push(overdueBankPayment);
+  if (f.tab === "pending") conds.push(sql`not ${overdueBankPayment}`);
   if (f.q) {
     const like = `%${f.q.replace(/[%_]/g, "")}%`;
     conds.push(or(ilike(applications.applicationNo, like), ilike(applications.orgName, like), ilike(applications.eventTitle, like), ilike(applications.contactName, like))!);
@@ -69,7 +79,7 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilt
   const f = normalizeAdminFilter(params);
   const where = adminListWhere(f);
   const rows = await db
-    .select({ app: applications, spaceName: spaces.name })
+    .select({ app: applications, spaceName: spaces.name, isOverdue: overdueBankPayment })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(where)
@@ -77,9 +87,12 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilt
     .limit(PAGE_SIZE)
     .offset((Math.max(1, params.page) - 1) * PAGE_SIZE);
   const counts = await db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status);
+  const [{ overdueCount } = { overdueCount: 0 }] = await db.select({ overdueCount: count() }).from(applications).where(overdueBankPayment);
   const tabCounts = Object.fromEntries(
     statusTabs.map((t) => [t.key, counts.filter((c) => t.statuses.length === 0 || t.statuses.includes(c.status)).reduce((s, c) => s + c.n, 0)]),
   );
+  tabCounts.pending = (tabCounts.pending ?? 0) - overdueCount;
+  tabCounts.unpaid = overdueCount;
   const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(applications).where(where);
   return { rows, tab: f.tab, tabCounts, pageSize: PAGE_SIZE, total, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
@@ -90,7 +103,7 @@ export const EXPORT_LIMIT = 10_000;
 export async function listApplicationsForExport(db: DbOrTx, filter: AdminListFilter) {
   const f = normalizeAdminFilter(filter);
   const rows = await db
-    .select({ app: applications, spaceName: spaces.name, org: organizations })
+    .select({ app: applications, spaceName: spaces.name, org: organizations, isOverdue: overdueBankPayment })
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .leftJoin(organizations, eq(organizations.id, applications.organizationId))
@@ -99,18 +112,22 @@ export async function listApplicationsForExport(db: DbOrTx, filter: AdminListFil
     .limit(EXPORT_LIMIT);
   const ids = rows.map((r) => r.app.id);
   const pays = ids.length
-    ? await db.select({ applicationId: payments.applicationId, method: payments.method, status: payments.status, amount: payments.amount, paidAt: payments.paidAt }).from(payments).where(inArray(payments.applicationId, ids))
+    ? await db.select({ applicationId: payments.applicationId, method: payments.method, status: payments.status, amount: payments.amount, paidAt: payments.paidAt, providerRaw: payments.providerRaw }).from(payments).where(inArray(payments.applicationId, ids))
     : [];
   const refs = ids.length
     ? await db.select({ applicationId: refunds.applicationId, amount: refunds.amount, status: refunds.status }).from(refunds).where(inArray(refunds.applicationId, ids))
     : [];
   return rows.map((r) => {
     const myPays = pays.filter((p) => p.applicationId === r.app.id);
-    const paid = myPays.filter((p) => p.status === "paid");
+    const paid = myPays.filter((p) => p.status === "paid" || (p.status === "cancelled" && p.paidAt !== null));
     const myRefs = refs.filter((x) => x.applicationId === r.app.id);
     return {
       ...r,
       method: (paid[0] ?? myPays[0])?.method ?? null,
+      depositorName: [...new Set(myPays.filter((p) => p.method === "bank_transfer").flatMap((p) => {
+        const name = (p.providerRaw as { depositorName?: unknown } | null)?.depositorName;
+        return typeof name === "string" && name.trim() ? [name.trim()] : [];
+      }))].join(" / "),
       paidAmount: paid.reduce((s, p) => s + p.amount, 0),
       refundedAmount: myRefs.filter((x) => x.status === "succeeded").reduce((s, x) => s + x.amount, 0),
       refundPendingAmount: myRefs.filter((x) => x.status !== "succeeded").reduce((s, x) => s + x.amount, 0),
@@ -148,13 +165,27 @@ export async function getApplicationForAdmin(db: DbOrTx, applicationNo: string) 
   return { ...row, files, history, payments: paymentRows, refunds: refundRows, holdExpiresAt };
 }
 
-/** 환불 처리 목록: 수동 처리 대기(계좌이체)와 재처리 필요(실패) */
-export function listRefundsNeedingAction(db: DbOrTx) {
+export const refundTabs = [
+  { key: "pending", label: "처리 대기" },
+  { key: "completed", label: "환불 완료" },
+] as const;
+export type RefundTab = (typeof refundTabs)[number]["key"];
+export function normalizeRefundTab(tab: string | undefined | null): RefundTab {
+  return tab === "completed" ? "completed" : "pending";
+}
+
+/** 환불 목록: 대기는 오래된 요청부터, 완료는 최근 완료부터 표시한다. */
+export function listRefunds(db: DbOrTx, tab: RefundTab) {
   return db
     .select({ refund: refunds, payment: payments, applicationNo: applications.applicationNo, orgName: applications.orgName, contactName: applications.contactName })
     .from(refunds)
     .innerJoin(payments, eq(payments.id, refunds.paymentId))
     .innerJoin(applications, eq(applications.id, refunds.applicationId))
-    .where(inArray(refunds.status, ["requested", "failed"]))
-    .orderBy(asc(refunds.createdAt));
+    .where(tab === "completed" ? eq(refunds.status, "succeeded") : inArray(refunds.status, ["requested", "failed"]))
+    .orderBy(...(tab === "completed" ? [desc(refunds.completedAt), desc(refunds.createdAt), desc(refunds.id)] : [asc(refunds.createdAt), asc(refunds.id)]));
+}
+
+/** 기존 호출용: 수동 처리 대기와 재처리 필요 건 */
+export function listRefundsNeedingAction(db: DbOrTx) {
+  return listRefunds(db, "pending");
 }
