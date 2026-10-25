@@ -3,11 +3,11 @@ import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { applicationInputSchema, type ApplicationInput } from "@/domain/booking/application-input";
 import { checkBooking, halfYearRange, type Violation } from "@/domain/booking/rules";
 import { calculatePrice } from "@/domain/pricing/calculate";
-import { kstDateTime, toMinutes } from "@/domain/booking/time";
+import { kstDateTime } from "@/domain/booking/time";
 import { validateRegNo } from "@/domain/organization/reg-no";
 import { parseReceiptRequest, type ReceiptField } from "@/domain/booking/receipt";
 import { hashApplicantPassword, validateApplicantPassword } from "@/server/applicant/auth";
-import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
+import { baseConsents, extraConsentCatalog, isExtraConsentKey, optionalConsents } from "@/domain/spaces/consents";
 import { kstDateOf } from "@/lib/time";
 import { writeAudit } from "@/server/audit/log";
 import { fieldErrorsFrom, pgErrorCode } from "@/server/actor";
@@ -42,10 +42,12 @@ export type SubmitResult =
     }
   | { ok: false; formError?: string; fieldErrors?: Partial<Record<string, string>>; violations?: Violation[] };
 
-/** 이 신청에 필요한 동의 항목 (계획서 G-3: 항목별 분리 동의) */
-export function requiredConsentsFor(space: { extraConsents: string[] }, night: boolean): Record<string, string> {
+/**
+ * 이 신청에 필요한 동의 항목 (계획서 G-3: 항목별 분리 동의).
+ * 야간 출입문 관리 규정 동의는 받지 않는다(2026-10 결정: 신청 화면에서 야간 대관 관련 내용 숨김).
+ */
+export function requiredConsentsFor(space: { extraConsents: string[] }): Record<string, string> {
   const required: Record<string, string> = { ...baseConsents };
-  if (night) Object.assign(required, nightConsent);
   for (const key of space.extraConsents.filter(isExtraConsentKey)) required[key] = extraConsentCatalog[key];
   return required;
 }
@@ -89,12 +91,10 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
     // 기본 입력 오류와 함께 동의 누락도 한 번에 알려 준다
     const fieldErrors = fieldErrorsFrom(parsed.error.issues);
     const spaceId = typeof raw.spaceId === "string" ? raw.spaceId : "";
-    const end = typeof raw.end === "string" && /^\d{2}:\d{2}$/.test(raw.end) ? toMinutes(raw.end) : null;
     const space = /^[0-9a-f-]{36}$/.test(spaceId) ? await findSpace(db, spaceId) : null;
-    if (space && end !== null) {
-      const dayEnd = toMinutes((await loadBookingContext(db, space, now)).settings["operation.dayEnd"]);
+    if (space) {
       const consents = Array.isArray(raw.consents) ? raw.consents.map(String) : [];
-      const missing = missingConsents(requiredConsentsFor(space, end > dayEnd), consents);
+      const missing = missingConsents(requiredConsentsFor(space), consents);
       if (missing) fieldErrors.consents ??= missing;
     }
     const pw = validateApplicantPassword(String(raw.applicantPassword ?? ""), String(raw.applicantPasswordConfirm ?? ""));
@@ -127,8 +127,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
       else fieldErrors.regNo = r.message;
     }
   }
-  const night = input.endMinutes > ctx.hours.dayEnd;
-  const requiredConsents = requiredConsentsFor(space, night);
+  const requiredConsents = requiredConsentsFor(space);
   const missing = missingConsents(requiredConsents, input.consents);
   if (missing) fieldErrors.consents = missing;
 
