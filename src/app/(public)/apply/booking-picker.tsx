@@ -205,13 +205,12 @@ export function BookingPicker({
                       {day.slots.map((s) => {
                         const selected = start !== null && (end === null ? s.start === start : toMin(s.start) >= toMin(start) && toMin(s.start) < toMin(end));
                         const canStart = startOptions.includes(s.start);
-                        const night = toMin(s.start) >= toMin(day.dayEnd);
                         const cls = selected
                           ? "border-brick bg-brick text-white font-semibold"
                           : s.state === "free"
                             ? `border-status-green bg-status-green text-white font-semibold ${canStart ? "hover:bg-status-green/85 cursor-pointer" : "cursor-default"}`
                             : "border-dashed border-line bg-cream-dark/70 text-muted/70 line-through cursor-not-allowed";
-                        const label = `${s.start}~${s.end} ${selected ? "선택함" : slotLabel[s.state]}${night ? " (야간)" : ""}`;
+                        const label = `${s.start}~${s.end} ${selected ? "선택함" : slotLabel[s.state]}`;
                         return canStart ? (
                           <button
                             key={s.start}
@@ -227,12 +226,10 @@ export function BookingPicker({
                             className={`rounded border px-1 py-1.5 text-center text-xs ${cls}`}
                           >
                             {s.start}
-                            {night && <span className="ml-0.5 text-[10px] font-normal opacity-90">야간</span>}
                           </button>
                         ) : (
                           <span key={s.start} title={label} className={`rounded border px-1 py-1.5 text-center text-xs ${cls}`}>
                             {s.start}
-                            {night && <span className="ml-0.5 text-[10px] no-underline opacity-90">야간</span>}
                             <span className="sr-only"> {selected ? "선택함" : slotLabel[s.state]}</span>
                           </span>
                         );
@@ -270,7 +267,6 @@ export function BookingPicker({
                             {endOptions.map((t) => (
                               <option key={t} value={t}>
                                 {t}
-                                {toMin(t) > toMin(day.dayEnd) ? " (야간)" : ""}
                               </option>
                             ))}
                           </select>
@@ -280,11 +276,6 @@ export function BookingPicker({
                     {(day.bufferBeforeMinutes > 0 || day.bufferAfterMinutes > 0) && (
                       <p className="mt-2 text-xs text-muted">
                         준비 {day.bufferBeforeMinutes}분·철수 {day.bufferAfterMinutes}분을 포함해 앞뒤 일정과 겹치지 않는 시간만 고를 수 있습니다.
-                      </p>
-                    )}
-                    {end && toMin(end) > toMin(day.dayEnd) && (
-                      <p className="mt-2 rounded bg-cream px-3 py-2 text-xs">
-                        야간({day.dayEnd} 이후)을 포함합니다.
                       </p>
                     )}
                   </>

@@ -6,7 +6,7 @@ import { isValidDateString } from "@/domain/calendar/closures";
 import { feeOptionUnitLabels, formatWon } from "@/domain/pricing/fee-schedule";
 import { describeDiscount } from "@/domain/pricing/discount-input";
 import { noticeLines } from "@/domain/messages/template";
-import { baseConsents, extraConsentCatalog, isExtraConsentKey, nightConsent, optionalConsents } from "@/domain/spaces/consents";
+import { baseConsents, extraConsentCatalog, isExtraConsentKey, optionalConsents } from "@/domain/spaces/consents";
 import { describeRefundTiers } from "@/domain/refund/tiers";
 import { newUploadToken } from "@/server/booking/attachments";
 import { quote } from "@/server/booking/availability";
@@ -50,16 +50,15 @@ export default async function ApplicationFormPage({ searchParams }: { searchPara
 
   const s = ctx.settings;
   const bankTransfer = effectivePaymentMethod(s["payment.method"]) === "bankTransfer";
-  const night = endMinutes > ctx.hours.dayEnd;
   const refundText = `심사에서 반려되면 전액 환불합니다.\n승인 전 신청을 철회하면 ${s["payment.withdrawRefundPercent"]}%를 환불합니다.\n예약 확정 후 환불 요청이 정당하다고 인정되는 경우(당일 취소 불가)${s["payment.refundTiers"].length > 0 ? `: ${describeRefundTiers(s["payment.refundTiers"])}` : ""}\n기념관 사정으로 취소되면 전액 환불합니다.`;
   const texts: Record<string, string> = {
     privacy: s["content.privacyPolicy"],
     operationRules: s["content.operationRules"],
     refundRules: refundText,
-    nightRules: s["content.nightRules"],
     hallRules: s["content.hallRules"],
   };
-  const consentList: Record<string, string> = { ...baseConsents, ...(night ? nightConsent : {}) };
+  // 야간 출입문 관리 규정 동의는 받지 않는다(2026-10 결정)
+  const consentList: Record<string, string> = { ...baseConsents };
   for (const key of space.extraConsents.filter(isExtraConsentKey)) consentList[key] = extraConsentCatalog[key];
 
   return (
