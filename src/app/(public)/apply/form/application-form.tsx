@@ -355,9 +355,16 @@ function Body({
               <Field label="종목" name="taxBizItem" error={e.taxBizItem}>
                 {input("taxBizItem")}
               </Field>
+              <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" name="taxPreIssue" defaultChecked={str(v, "taxPreIssue", "") === "on"} className="mt-0.5 size-4" />
+                <span>
+                  증빙 발행 희망(결제 전 사전 발행)
+                  <span className="block text-xs text-muted">입금 전에 담당자가 먼저 발행합니다.</span>
+                </span>
+              </label>
             </>
           )}
-          {receiptType !== "none" && <p className="text-xs text-muted sm:col-span-2">입금이 확인되면 담당자가 발행합니다. 발행 전 정보가 바뀌면 기념관으로 연락해 주세요.</p>}
+          {receiptType !== "none" && <p className="text-xs text-muted sm:col-span-2">사전 발행을 고르지 않으면 입금이 확인된 뒤 담당자가 발행합니다. 발행 전 정보가 바뀌면 기념관으로 연락해 주세요.</p>}
         </fieldset>
 
         <fieldset className="flex flex-col gap-3 rounded-lg border border-line bg-white p-5">

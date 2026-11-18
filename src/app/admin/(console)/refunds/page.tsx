@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ProtectedDownload } from "@/components/admin/protected-download";
 import Link from "next/link";
 import { hasPermission } from "@/domain/auth/permissions";
 import { PageHeader } from "@/components/admin/ui";
@@ -28,7 +29,7 @@ export default async function RefundsPage({ searchParams }: { searchParams: Prom
             </Link>
           ))}
         </nav>
-        {canDownload && <a href={`/admin/api/refunds/export?tab=${tab}`} className="btn-secondary text-sm">환불 내역 내려받기(CSV)</a>}
+        {canDownload && <ProtectedDownload action="/admin/api/refunds/export" fields={{ tab }} label="환불 내역 내려받기(엑셀)" />}
       </div>
       <div className="overflow-x-auto rounded-lg border border-line bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">

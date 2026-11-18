@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeReceipt, parseReceiptRequest } from "./receipt";
+import { describeReceipt, parseReceiptRequest, receiptKindLabel } from "./receipt";
 
 describe("증빙 발행 희망", () => {
   it("선택 안 하면 null", () => {
@@ -14,8 +14,18 @@ describe("증빙 발행 희망", () => {
   });
   it("세금계산서: 필수 항목 확인", () => {
     const r = parseReceiptRequest({ receiptType: "tax_invoice", taxBizNo: "123-82-87650", taxCompany: "○○협동조합", taxCeo: "홍길동", taxEmail: "Tax@Example.org", taxBizType: "서비스", taxBizItem: "교육" });
-    expect(r).toEqual({ ok: true, value: { type: "tax_invoice", bizNo: "1238287650", company: "○○협동조합", ceo: "홍길동", email: "tax@example.org", address: "", bizType: "서비스", bizItem: "교육" } });
+    expect(r).toEqual({ ok: true, value: { type: "tax_invoice", bizNo: "1238287650", company: "○○협동조합", ceo: "홍길동", email: "tax@example.org", address: "", bizType: "서비스", bizItem: "교육", preIssue: false } });
     if (r.ok) expect(describeReceipt(r.value)).toBe("세금계산서 · 123-82-87650 · ○○협동조합 · 대표 홍길동 · tax@example.org · 서비스/교육");
     expect(parseReceiptRequest({ receiptType: "tax_invoice", taxBizNo: "1", taxEmail: "x" })).toMatchObject({ ok: false, errors: { taxBizNo: expect.any(String), taxCompany: expect.any(String), taxCeo: expect.any(String), taxEmail: expect.any(String) } });
+  });
+  it("세금계산서: 결제 전 사전 발행 희망", () => {
+    const r = parseReceiptRequest({ receiptType: "tax_invoice", taxBizNo: "123-82-87650", taxCompany: "○○협동조합", taxCeo: "홍길동", taxEmail: "tax@example.org", taxPreIssue: "on" });
+    expect(r).toMatchObject({ ok: true, value: { preIssue: true } });
+    if (r.ok) {
+      expect(describeReceipt(r.value)).toContain("세금계산서(결제 전 사전 발행)");
+      expect(receiptKindLabel(r.value)).toBe("세금계산서(결제 전 사전 발행)");
+    }
+    // 현금영수증에는 사전 발행이 없다
+    expect(parseReceiptRequest({ receiptType: "cash", cashPurpose: "income", cashNumber: "010-1234-5678", taxPreIssue: "on" })).toEqual({ ok: true, value: { type: "cash", purpose: "income", number: "01012345678" } });
   });
 });

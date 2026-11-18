@@ -1,4 +1,4 @@
-import type { ReceiptRequest } from "@/domain/booking/receipt";
+import { receiptKindLabel, type ReceiptRequest } from "@/domain/booking/receipt";
 import { formatRegNo, regTypeLabels } from "@/domain/organization/reg-no";
 import { toCsv } from "@/lib/csv";
 import { formatKst, kstDateOf } from "@/lib/time";
@@ -12,8 +12,8 @@ const phone = (v: string) => v.replace(/^(01\d|02|0\d{2})(\d{3,4})(\d{4})$/, "$1
 const time = (d: Date) => formatKst(d).slice(-5);
 const consentAt = (app: ExportRow["app"]) => Boolean((app.consents as Record<string, string> | null)?.smsReceive);
 
-/** 신청 목록 내려받기(필터 적용) */
-export function applicationsCsv(rows: ExportRow[]): string {
+/** 신청 목록 내려받기(필터 적용): 첫 행이 머리글인 표 */
+export function applicationsTable(rows: ExportRow[]): (string | number)[][] {
   const header = [
     "신청번호", "상태", "공간", "이용일", "시작", "종료", "단체명", "단체번호 종류", "단체번호", "담당자", "휴대전화", "이메일",
     "행사명", "예상 인원", "행사 목적·내용", "금액(원, 부가세 포함)", "감면", "결제 방식", "받은 금액(원)", "입금·결제 누계(원)", "환불 완료(원)", "환불 처리 중(원)",
@@ -53,7 +53,11 @@ export function applicationsCsv(rows: ExportRow[]): string {
       ...receiptCells({ app, spaceName, paidAmount, refundedAmount, refundPendingAmount }),
     ];
   });
-  return toCsv([header, ...lines]);
+  return [header, ...lines];
+}
+
+export function applicationsCsv(rows: ExportRow[]): string {
+  return toCsv(applicationsTable(rows));
 }
 
 /** 부가세 포함 금액을 공급가액·세액으로 나눈다(공급가액은 원 단위 반올림) */
@@ -79,7 +83,7 @@ function receiptCells({ app, spaceName, paidAmount, refundedAmount, refundPendin
   const tail = [amount, supply, vat, `대관료(${spaceName}, ${kstDateOf(app.startsAt)})`, note];
   if (r.type === "cash") {
     const number = r.purpose === "income" ? phone(r.number) : formatRegNo(r.number);
-    return ["현금영수증", r.purpose === "income" ? "소득공제" : "지출증빙", number, "", "", "", "", "", "", "", ...tail];
+    return [receiptKindLabel(r), r.purpose === "income" ? "소득공제" : "지출증빙", number, "", "", "", "", "", "", "", ...tail];
   }
-  return ["세금계산서", "", "", formatRegNo(r.bizNo), r.company, r.ceo, r.email, r.address, r.bizType, r.bizItem, ...tail];
+  return [receiptKindLabel(r), "", "", formatRegNo(r.bizNo), r.company, r.ceo, r.email, r.address, r.bizType, r.bizItem, ...tail];
 }

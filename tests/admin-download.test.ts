@@ -20,15 +20,22 @@ vi.mock("@/server/applications/admin-queries", () => ({
 }));
 vi.mock("@/server/audit/log", () => ({ writeAudit }));
 
-import { GET as exportRefunds } from "@/app/admin/api/refunds/export/route";
-import { GET as exportApplications } from "@/app/admin/api/applications/export/route";
+import { GET as exportRefundsGet, POST as exportRefunds } from "@/app/admin/api/refunds/export/route";
+import { GET as exportApplicationsGet, POST as exportApplications } from "@/app/admin/api/applications/export/route";
 import { GET as downloadAttachment } from "@/app/admin/api/attachments/[id]/route";
 
-const request = new Request("http://localhost/admin/api/applications/export");
+/** 내려받기는 비밀번호를 POST 본문으로 받는다 */
+const post = (url: string, fields: Record<string, string> = {}) => {
+  const body = new FormData();
+  for (const [k, v] of Object.entries({ password: "secret12", passwordConfirm: "secret12", ...fields })) body.set(k, v);
+  return new Request(url, { method: "POST", body });
+};
+const appsUrl = "http://localhost/admin/api/applications/export";
+const refundsUrl = "http://localhost/admin/api/refunds/export";
+const request = new Request(appsUrl);
 const routes = [
-  { name: "환불 CSV", run: () => exportRefunds(new Request("http://localhost/admin/api/refunds/export?tab=completed")), allowedStatus: 200 },
-  { name: "신청 CSV", run: () => exportApplications(request), allowedStatus: 200 },
-  { name: "기존 증빙 URL도 통합 CSV", run: () => exportApplications(new Request(`${request.url}?kind=receipts`)), allowedStatus: 200 },
+  { name: "환불 엑셀", run: () => exportRefunds(post(refundsUrl, { tab: "completed" })), allowedStatus: 200 },
+  { name: "신청 엑셀", run: () => exportApplications(post(appsUrl)), allowedStatus: 200 },
   // An invalid ID reaches validation only after authorization succeeds.
   { name: "첨부파일", run: () => downloadAttachment(request, { params: Promise.resolve({ id: "invalid" }) }), allowedStatus: 404 },
 ];
@@ -61,25 +68,39 @@ for (const route of routes) {
 }
 
 
-describe("통합 CSV와 환불 내역 내려받기", () => {
-  it.each([{ permissions: ["applications.view", "applications.download"] }, { permissions: ["applications.view", "refunds.manage"] }])("환불 CSV에는 환불 처리와 다운로드 권한이 모두 필요하다 ($permissions)", async ({ permissions }) => {
+describe("비밀번호를 건 엑셀 내려받기", () => {
+  const superAdmin = () => getCurrentAdmin.mockResolvedValue({ user: { id: "admin" }, session: { mfaVerified: true }, grade: { isSuper: true, permissions: [] } });
+  it.each([{ permissions: ["applications.view", "applications.download"] }, { permissions: ["applications.view", "refunds.manage"] }])("환불 내역에는 환불 처리와 다운로드 권한이 모두 필요하다 ($permissions)", async ({ permissions }) => {
     getCurrentAdmin.mockResolvedValue({ session: { mfaVerified: true }, grade: { isSuper: false, permissions } });
-    expect((await exportRefunds(new Request("http://localhost/admin/api/refunds/export"))).status).toBe(403);
+    expect((await exportRefunds(post(refundsUrl))).status).toBe(403);
     expect(listRefunds).not.toHaveBeenCalled();
   });
-  it("선택한 환불 탭을 내보내고 감사 로그와 CSV 헤더를 기록한다", async () => {
-    getCurrentAdmin.mockResolvedValue({ user: { id: "admin" }, session: { mfaVerified: true }, grade: { isSuper: true, permissions: [] } });
-    const response = await exportRefunds(new Request("http://localhost/admin/api/refunds/export?tab=completed"));
-    expect(listRefunds).toHaveBeenCalledWith({}, "completed");
-    expect(response.headers.get("content-type")).toContain("text/csv");
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(writeAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: "pii.export_refunds", after: { tab: "completed", count: 0 } }));
+  it("비밀번호가 짧거나 확인이 다르면 내려주지 않고 기록도 남기지 않는다", async () => {
+    superAdmin();
+    for (const fields of [{ password: "12345", passwordConfirm: "12345" }, { password: "secret12", passwordConfirm: "secret13" }, { password: "", passwordConfirm: "" }]) {
+      expect((await exportApplications(post(appsUrl, fields))).status).toBe(400);
+      expect((await exportRefunds(post(refundsUrl, fields))).status).toBe(400);
+    }
+    expect(listApplicationsForExport).not.toHaveBeenCalled();
+    expect(listRefunds).not.toHaveBeenCalled();
+    expect(writeAudit).not.toHaveBeenCalled();
   });
-  it("기존 증빙 URL도 미요청을 제외하지 않는 통합 CSV를 반환한다", async () => {
-    getCurrentAdmin.mockResolvedValue({ user: { id: "admin" }, session: { mfaVerified: true }, grade: { isSuper: true, permissions: [] } });
-    const regular = await exportApplications(request);
-    const legacy = await exportApplications(new Request(`${request.url}?kind=receipts`));
-    expect(await regular.text()).toBe(await legacy.text());
+  it("암호화된 엑셀 파일을 주고 감사 로그를 남긴다", async () => {
+    superAdmin();
+    const response = await exportRefunds(post(refundsUrl, { tab: "completed" }));
+    expect(listRefunds).toHaveBeenCalledWith({}, "completed");
+    expect(response.headers.get("content-type")).toContain("spreadsheetml");
+    expect(response.headers.get("content-disposition")).toContain(".xlsx");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    // 암호화된 오피스 파일은 OLE 복합 문서(D0 CF 11 E0)로 시작한다(일반 xlsx는 zip, PK)
+    expect(Buffer.from(await response.arrayBuffer()).subarray(0, 4).toString("hex")).toBe("d0cf11e0");
+    expect(writeAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: "pii.export_refunds", after: { tab: "completed", count: 0, encrypted: true } }));
+    const apps = await exportApplications(post(appsUrl));
+    expect(Buffer.from(await apps.arrayBuffer()).subarray(0, 4).toString("hex")).toBe("d0cf11e0");
     expect(writeAudit).toHaveBeenLastCalledWith({}, expect.objectContaining({ action: "pii.export_applications" }));
+  });
+  it("주소(GET)로는 내려받을 수 없다", async () => {
+    expect(exportApplicationsGet().status).toBe(405);
+    expect(exportRefundsGet().status).toBe(405);
   });
 });
