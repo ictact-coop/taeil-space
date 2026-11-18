@@ -144,6 +144,10 @@ export function EditApplicationForm({
             {field("taxAddress", "사업장 주소", {}, true)}
             {field("taxBizType", "업태")}
             {field("taxBizItem", "종목")}
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" name="taxPreIssue" defaultChecked={val("taxPreIssue") === "on"} />
+              증빙 발행 희망(결제 전 사전 발행)
+            </label>
           </>
         )}
       </fieldset>

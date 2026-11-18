@@ -4,8 +4,8 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
-import { listApplicationsForAdmin, listApplicationsForExport, listRefunds, normalizeRefundTab } from "@/server/applications/admin-queries";
-import { applicationsCsv } from "@/server/applications/export";
+import { listApplicationsForAdmin, listApplicationsForExport, listRefunds, normalizeAdminFilter, normalizeRefundTab } from "@/server/applications/admin-queries";
+import { applicationsCsv, applicationsTable } from "@/server/applications/export";
 import { refundsCsv } from "@/server/payments/refund-export";
 import { completeManualRefund } from "@/server/payments/refunds";
 import { confirmDeposit } from "@/server/applications/review";
@@ -79,6 +79,8 @@ describe.skipIf(!hasTestDb)("신청 내려받기", () => {
     const nov = await listApplicationsForExport(db, { tab: "all", q: "", from: "2026-11-01", to: "2026-11-30" });
     expect(nov.map((r) => r.app.orgName).sort()).toEqual(["가모임", "나모임"]);
     expect((await listApplicationsForExport(db, { tab: "all", q: "", spaceId: hall.id })).map((r) => r.app.orgName)).toEqual(["나모임"]);
+    // 미입금 분류는 실제 현재 시각으로 판단하므로, 고정 시각(now)에 만든 입금 기한을 실제 시각 뒤로 옮겨 둔다(날짜가 지나도 깨지지 않게)
+    await db.update(slotOccupancies).set({ expiresAt: new Date(Date.now() + 86_400_000) }).where(eq(slotOccupancies.kind, "pending_payment"));
     expect((await listApplicationsForExport(db, { tab: "pending", q: "모임" })).map((r) => r.app.orgName).sort()).toEqual(["가모임", "다모임"]);
     // 화면 목록도 같은 필터
     expect((await listApplicationsForAdmin(db, { tab: "all", q: "", from: "2026-11-01", to: "2026-11-30", page: 1 })).total).toBe(2);
@@ -200,4 +202,32 @@ describe.skipIf(!hasTestDb)("신청 내려받기", () => {
     await check();
   });
 
+  it("증빙 탭은 종류별로 거르고, 열 제목 정렬(신청번호·이용 일시·결제·접수)을 내려받기에도 적용한다", async () => {
+    const pre = await submit(room.id, "2027-01-05", "사전발행모임", { receiptType: "tax_invoice", taxBizNo: "123-82-87650", taxCompany: "사전협동조합", taxCeo: "김대표", taxEmail: "pre@example.org", taxPreIssue: "on" });
+    const tax = await submit(room.id, "2027-01-06", "일반계산서모임", { receiptType: "tax_invoice", taxBizNo: "123-82-87650", taxCompany: "일반협동조합", taxCeo: "김대표", taxEmail: "tax@example.org" });
+    const cash = await submit(room.id, "2027-01-04", "현금영수증모임", { receiptType: "cash", cashPurpose: "income", cashNumber: "010-2222-3333" });
+    const none = await submit(room.id, "2027-01-07", "증빙없음모임");
+    const jan = { from: "2027-01-01", to: "2027-01-31" };
+    const nos = async (f: Record<string, string>) => (await listApplicationsForExport(db, normalizeAdminFilter({ tab: "receipts", ...jan, ...f }))).map((r) => r.app.applicationNo);
+    expect((await nos({})).sort()).toEqual([pre.applicationNo, tax.applicationNo, cash.applicationNo].sort());
+    expect((await nos({ receipt: "tax" })).sort()).toEqual([pre.applicationNo, tax.applicationNo].sort());
+    expect(await nos({ receipt: "tax_pre" })).toEqual([pre.applicationNo]);
+    expect(await nos({ receipt: "cash" })).toEqual([cash.applicationNo]);
+    expect(await nos({ receipt: "엉뚱한값" })).toHaveLength(3);
+    const page = await listApplicationsForAdmin(db, { tab: "receipts", q: "", page: 1, ...jan });
+    expect(page.total).toBe(3);
+    expect(page.tabCounts.receipts).toBeGreaterThanOrEqual(3);
+
+    // 정렬: 이용 일시 최신순 ↔ 오래된 순, 신청번호
+    const all = (f: Record<string, string>) => listApplicationsForExport(db, normalizeAdminFilter({ tab: "all", ...jan, ...f }));
+    expect((await all({ sort: "starts", dir: "desc" })).map((r) => r.app.orgName)).toEqual(["증빙없음모임", "일반계산서모임", "사전발행모임", "현금영수증모임"]);
+    expect((await all({ sort: "starts", dir: "asc" })).map((r) => r.app.orgName)).toEqual(["현금영수증모임", "사전발행모임", "일반계산서모임", "증빙없음모임"]);
+    expect((await all({ sort: "no", dir: "asc" })).map((r) => r.app.applicationNo)).toEqual([pre, tax, cash, none].map((a) => a.applicationNo));
+    expect((await all({ sort: "no" })).map((r) => r.app.applicationNo)).toEqual([none, cash, tax, pre].map((a) => a.applicationNo)); // dir 없으면 최신순
+    expect(normalizeAdminFilter({ tab: "all", sort: "엉뚱한값", dir: "asc" })).toMatchObject({ sort: undefined, dir: undefined });
+    // 내려받기 표에도 같은 순서와 증빙 종류
+    const table = applicationsTable(await all({ sort: "starts", dir: "asc" }));
+    expect(table.slice(1).map((r) => r[0])).toEqual([cash, pre, tax, none].map((a) => a.applicationNo));
+    expect(table.flat()).toContain("세금계산서(결제 전 사전 발행)");
+  });
 });

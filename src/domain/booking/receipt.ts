@@ -3,13 +3,14 @@ import { formatRegNo, isValidBusinessNoChecksum, normalizeRegNo } from "@/domain
 /**
  * 증빙 발행 희망(현금영수증·세금계산서). 신청서에서 선택 입력하고, 담당자가 입금 확인 후 홈택스 등에서 발행한다.
  * 현금영수증: 소득공제용(휴대전화 번호) 또는 지출증빙용(사업자등록번호)
- * 세금계산서: 사업자등록번호·상호·대표자·받을 이메일(필수), 주소·업태·종목(선택)
+ * 세금계산서: 사업자등록번호·상호·대표자·받을 이메일(필수), 주소·업태·종목(선택),
+ *   결제 전 사전 발행 희망(선택, 2026-11 기념관 요청: 입금 전에 담당자가 먼저 발행)
  */
 export type ReceiptRequest =
   | { type: "cash"; purpose: "income" | "expense"; number: string }
-  | { type: "tax_invoice"; bizNo: string; company: string; ceo: string; email: string; address: string; bizType: string; bizItem: string };
+  | { type: "tax_invoice"; bizNo: string; company: string; ceo: string; email: string; address: string; bizType: string; bizItem: string; preIssue?: boolean };
 
-export const RECEIPT_FIELDS = ["receiptType", "cashPurpose", "cashNumber", "taxBizNo", "taxCompany", "taxCeo", "taxEmail", "taxAddress", "taxBizType", "taxBizItem"] as const;
+export const RECEIPT_FIELDS = ["receiptType", "cashPurpose", "cashNumber", "taxBizNo", "taxCompany", "taxCeo", "taxEmail", "taxAddress", "taxBizType", "taxBizItem", "taxPreIssue"] as const;
 export type ReceiptField = (typeof RECEIPT_FIELDS)[number];
 
 export function receiptRawFromForm(form: FormData): Record<ReceiptField, string> {
@@ -42,7 +43,7 @@ export function parseReceiptRequest(
     if (Object.keys(errors).length) return { ok: false, errors };
     return {
       ok: true,
-      value: { type: "tax_invoice", bizNo, company: v("taxCompany"), ceo: v("taxCeo"), email: v("taxEmail").toLowerCase(), address: v("taxAddress"), bizType: v("taxBizType"), bizItem: v("taxBizItem") },
+      value: { type: "tax_invoice", bizNo, company: v("taxCompany"), ceo: v("taxCeo"), email: v("taxEmail").toLowerCase(), address: v("taxAddress"), bizType: v("taxBizType"), bizItem: v("taxBizItem"), preIssue: v("taxPreIssue") === "on" },
     };
   }
   return { ok: false, errors: { receiptType: "증빙 종류를 다시 고르세요." } };
@@ -55,7 +56,14 @@ export function describeReceipt(r: ReceiptRequest | null | undefined): string {
     const n = r.purpose === "income" ? r.number.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3") : formatRegNo(r.number);
     return `현금영수증(${r.purpose === "income" ? "소득공제" : "지출증빙"}) · ${n}`;
   }
-  return [`세금계산서 · ${formatRegNo(r.bizNo)} · ${r.company} · 대표 ${r.ceo} · ${r.email}`, r.address, [r.bizType, r.bizItem].filter(Boolean).join("/")]
+  return [`세금계산서${r.preIssue ? "(결제 전 사전 발행)" : ""} · ${formatRegNo(r.bizNo)} · ${r.company} · 대표 ${r.ceo} · ${r.email}`, r.address, [r.bizType, r.bizItem].filter(Boolean).join("/")]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** 증빙 종류 이름(목록·내려받기용) */
+export function receiptKindLabel(r: ReceiptRequest | null | undefined): string {
+  if (!r) return "";
+  if (r.type === "cash") return "현금영수증";
+  return r.preIssue ? "세금계산서(결제 전 사전 발행)" : "세금계산서";
 }

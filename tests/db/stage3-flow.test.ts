@@ -377,7 +377,7 @@ describe.skipIf(!hasTestDb)("관리자 조회", () => {
       await db.insert(applications).values([more("R-T-1", "pending_payment"), more("R-T-2", "confirmed"), more("R-T-3", "completed"), more("R-T-4", "rejected"), more("R-T-5", "withdrawn")]);
       const list = await listApplicationsForAdmin(db, { tab: "", q: "", page: 1 });
       expect(list.tab).toBe("pending"); // 기본은 입금 대기
-      expect(list.tabCounts).toEqual({ pending: 1, unpaid: 0, review: 1, confirmed: 2, rejected: 1, all: 6 });
+      expect(list.tabCounts).toEqual({ pending: 1, unpaid: 0, review: 1, confirmed: 2, rejected: 1, receipts: 0, all: 6 });
       expect((await listApplicationsForAdmin(db, { tab: "confirmed", q: "", page: 1 })).rows.map((r) => r.app.applicationNo).sort()).toEqual(["R-T-2", "R-T-3"]);
       // 입금 대기는 최근 신청이 위(신청일이 없으면 생성 시각)
       await db.insert(applications).values([

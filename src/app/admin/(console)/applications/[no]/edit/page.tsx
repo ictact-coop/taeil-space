@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "신청 정보 수정" };
 function receiptInitial(r: ReceiptRequest | null): Record<string, string> {
   if (!r) return { receiptType: "none" };
   if (r.type === "cash") return { receiptType: "cash", cashPurpose: r.purpose, cashNumber: r.number };
-  return { receiptType: "tax_invoice", taxBizNo: formatRegNo(r.bizNo), taxCompany: r.company, taxCeo: r.ceo, taxEmail: r.email, taxAddress: r.address, taxBizType: r.bizType, taxBizItem: r.bizItem };
+  return { receiptType: "tax_invoice", taxBizNo: formatRegNo(r.bizNo), taxCompany: r.company, taxCeo: r.ceo, taxEmail: r.email, taxAddress: r.address, taxBizType: r.bizType, taxBizItem: r.bizItem, taxPreIssue: r.preIssue ? "on" : "" };
 }
 
 export default async function EditApplicationPage({ params }: { params: Promise<{ no: string }> }) {

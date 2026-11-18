@@ -14,6 +14,8 @@ export const statusTabs: { key: string; label: string; statuses: ApplicationStat
   { key: "review", label: "확인 필요", statuses: ["submitted", "reviewing", "revision_requested"], onlyWhenNonEmpty: true },
   { key: "confirmed", label: "예약 확정", statuses: ["confirmed", "cancel_requested", "completed"] },
   { key: "rejected", label: "반려", statuses: ["rejected"] },
+  // 증빙(현금영수증·세금계산서) 발행을 희망한 신청(상태 무관). 종류는 receipt 필터로 좁힌다(2026-11 기념관 요청)
+  { key: "receipts", label: "증빙", statuses: [] },
   { key: "all", label: "전체", statuses: [] },
 ];
 
@@ -24,13 +26,29 @@ const PAGE_SIZE = 30;
 
 const submittedOrCreated = sql`coalesce(${applications.submittedAt}, ${applications.createdAt})`;
 
-/** 신청 관리 목록 필터: 상태 탭, 검색어, 이용일 기간(KST, 포함), 공간 */
+/** 증빙 탭의 종류 필터 */
+export const receiptFilters = [
+  { key: "", label: "전체" },
+  { key: "tax", label: "세금계산서" },
+  { key: "tax_pre", label: "세금계산서(결제 전 사전 발행)" },
+  { key: "cash", label: "현금영수증" },
+] as const;
+export type ReceiptFilter = (typeof receiptFilters)[number]["key"];
+
+/** 정렬할 수 있는 열: 신청번호, 이용 일시, 결제·접수(입금 확인 시각, 없으면 신청 시각) */
+export const sortKeys = ["no", "starts", "paid"] as const;
+export type SortKey = (typeof sortKeys)[number];
+
+/** 신청 관리 목록 필터: 상태 탭, 검색어, 이용일 기간(KST, 포함), 공간, 증빙 종류, 정렬 */
 export interface AdminListFilter {
   tab: string;
   q: string;
   from?: string;
   to?: string;
   spaceId?: string;
+  receipt?: ReceiptFilter;
+  sort?: SortKey;
+  dir?: "asc" | "desc";
 }
 
 const isDate = (v: string | undefined): v is string => Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)));
@@ -40,13 +58,28 @@ const isUuid = (v: string | undefined): v is string => Boolean(v && /^[0-9a-f-]{
 export function normalizeAdminFilter(f: Partial<Record<keyof AdminListFilter, string | undefined>>): AdminListFilter {
   const key = legacyTabs[f.tab ?? ""] ?? f.tab ?? "pending";
   const tab = (statusTabs.find((t) => t.key === key) ?? statusTabs[0]!).key;
+  const receipt = receiptFilters.find((r) => r.key === f.receipt)?.key;
+  const sort = sortKeys.find((k) => k === f.sort);
   return {
     tab,
     q: (f.q ?? "").trim().slice(0, 100),
     from: isDate(f.from) ? f.from : undefined,
     to: isDate(f.to) ? f.to : undefined,
     spaceId: isUuid(f.spaceId) ? f.spaceId : undefined,
+    receipt: tab === "receipts" && receipt ? receipt : undefined,
+    sort,
+    dir: sort ? (f.dir === "asc" ? "asc" : "desc") : undefined,
   };
+}
+
+const receiptType = sql`${applications.receiptRequest}->>'type'`;
+const receiptPreIssue = sql`coalesce((${applications.receiptRequest}->>'preIssue')::boolean, false)`;
+
+function receiptCondition(r: ReceiptFilter | undefined): SQL {
+  if (r === "cash") return sql`${receiptType} = 'cash'`;
+  if (r === "tax") return sql`${receiptType} = 'tax_invoice'`;
+  if (r === "tax_pre") return sql`(${receiptType} = 'tax_invoice' and ${receiptPreIssue})`;
+  return sql`${applications.receiptRequest} is not null`;
 }
 
 /** 신청은 취소하지 않고 입금 기한이 지난 계좌이체만 별도 분류한다. 워커 실행 여부와 무관하다. */
@@ -62,6 +95,7 @@ function adminListWhere(f: AdminListFilter): SQL | undefined {
   if (tab.statuses.length > 0) conds.push(inArray(applications.status, tab.statuses));
   if (f.tab === "unpaid") conds.push(overdueBankPayment);
   if (f.tab === "pending") conds.push(sql`not ${overdueBankPayment}`);
+  if (f.tab === "receipts") conds.push(receiptCondition(f.receipt));
   if (f.q) {
     const like = `%${f.q.replace(/[%_]/g, "")}%`;
     conds.push(or(ilike(applications.applicationNo, like), ilike(applications.orgName, like), ilike(applications.eventTitle, like), ilike(applications.contactName, like))!);
@@ -72,8 +106,18 @@ function adminListWhere(f: AdminListFilter): SQL | undefined {
   return conds.length ? and(...conds) : undefined;
 }
 
+const paidOrCreated = sql`coalesce(${applications.paidAt}, ${applications.createdAt})`;
+const sortColumns = { no: applications.applicationNo, starts: applications.startsAt, paid: paidOrCreated } as const;
+
+// 열 제목을 눌러 정렬하면 그 순서(같은 값이면 신청번호 순), 아니면 기본 순서:
 // 확인 필요는 입금 확인 순(오래된 것부터), 나머지는 최근 신청이 위(노션에서 가져온 신청은 노션 신청등록일 기준)
-const listOrder = (tab: string) => (tab === "review" ? [asc(applications.paidAt)] : [desc(submittedOrCreated), desc(applications.createdAt)]);
+function listOrder(f: AdminListFilter) {
+  if (f.sort) {
+    const by = f.dir === "asc" ? asc : desc;
+    return [by(sortColumns[f.sort]), by(applications.applicationNo)];
+  }
+  return f.tab === "review" ? [asc(applications.paidAt)] : [desc(submittedOrCreated), desc(applications.createdAt)];
+}
 
 export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilter & { page: number }) {
   const f = normalizeAdminFilter(params);
@@ -83,7 +127,7 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilt
     .from(applications)
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .where(where)
-    .orderBy(...listOrder(f.tab))
+    .orderBy(...listOrder(f))
     .limit(PAGE_SIZE)
     .offset((Math.max(1, params.page) - 1) * PAGE_SIZE);
   const counts = await db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status);
@@ -92,6 +136,8 @@ export async function listApplicationsForAdmin(db: DbOrTx, params: AdminListFilt
     statusTabs.map((t) => [t.key, counts.filter((c) => t.statuses.length === 0 || t.statuses.includes(c.status)).reduce((s, c) => s + c.n, 0)]),
   );
   tabCounts.pending = (tabCounts.pending ?? 0) - overdueCount;
+  const [{ receiptCount } = { receiptCount: 0 }] = await db.select({ receiptCount: count() }).from(applications).where(receiptCondition(undefined));
+  tabCounts.receipts = receiptCount;
   tabCounts.unpaid = overdueCount;
   const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(applications).where(where);
   return { rows, tab: f.tab, tabCounts, pageSize: PAGE_SIZE, total, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
@@ -108,7 +154,7 @@ export async function listApplicationsForExport(db: DbOrTx, filter: AdminListFil
     .innerJoin(spaces, eq(spaces.id, applications.spaceId))
     .leftJoin(organizations, eq(organizations.id, applications.organizationId))
     .where(adminListWhere(f))
-    .orderBy(...listOrder(f.tab))
+    .orderBy(...listOrder(f))
     .limit(EXPORT_LIMIT);
   const ids = rows.map((r) => r.app.id);
   const pays = ids.length
