@@ -7,6 +7,7 @@ import { db } from "@/server/db/client";
 import { effectivePaymentMethod } from "@/server/payments/gateway";
 import { getSettings } from "@/server/settings/service";
 import { BookingPicker } from "./booking-picker";
+import { latestBookableDate } from "@/domain/booking/rules";
 
 export const metadata: Metadata = { title: "대관 신청" };
 export const dynamic = "force-dynamic";
@@ -16,11 +17,17 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
   const [spaces, settings] = await Promise.all([listPublicSpaces(db), getSettings(db)]);
   const payLabel = effectivePaymentMethod(settings["payment.method"]) === "bankTransfer" ? "입금" : "결제";
   const selected = spaces.find((s) => s.code === q.space) ?? null;
+  const latest = latestBookableDate(kstDateOf(new Date()), settings["application.maxAdvanceMonths"]);
   const time = (v?: string) => (v && /^\d{2}:\d{2}$/.test(v) ? v : null);
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <p className="text-xs font-semibold text-brick">대관 신청</p>
       <h1 className="mt-1 font-serif text-3xl text-navy">공간과 날짜를 선택해 주세요</h1>
+      {latest && (
+        <p className="mt-2 text-sm text-muted">
+          오늘부터 {settings["application.maxAdvanceMonths"]}개월 뒤({latest})까지 이용할 날짜를 신청할 수 있습니다.
+        </p>
+      )}
       <div className="my-6">
         <Steps current={1} payLabel={payLabel} />
       </div>

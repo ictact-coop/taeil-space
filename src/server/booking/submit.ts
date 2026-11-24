@@ -196,6 +196,7 @@ export async function submitApplication(db: Db, raw: Record<string, unknown>, me
           today: ctx.today,
           nowMinutes: ctx.nowMinutes,
           paidRentalStartDate: s["operation.paidRentalStartDate"],
+          maxAdvanceMonths: s["application.maxAdvanceMonths"],
           hours: ctx.hours,
           space: ctx.bookingSpace,
           closureRules: ctx.closureRules,

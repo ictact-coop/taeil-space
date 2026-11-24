@@ -14,6 +14,7 @@ export type ViolationCode =
   | "BR-01"
   | "LEAD_TIME"
   | "BOOKING_WINDOW"
+  | "MAX_ADVANCE"
   | "HOURS"
   | "SLOT"
   | "MIN_DURATION"
@@ -48,6 +49,8 @@ export interface RuleContext {
   hours: OperatingHours;
   space: BookingSpace;
   closureRules: readonly ClosureRule[];
+  /** 오늘부터 최대 몇 개월 뒤 이용분까지 신청을 받는지(0·없으면 제한 없음, 정책 설정) */
+  maxAdvanceMonths?: number;
   /** 신청기한 대신 접수기간으로 받는 공간의 현재 접수기간 */
   bookingWindow: { from: string; until: string } | null;
   /** 요청 범위(준비·철수 시간 포함)와 겹치는 점유 종류 */
@@ -65,6 +68,19 @@ export interface BookingRequest {
   headcount: number | null;
 }
 
+/**
+ * 신청할 수 있는 가장 늦은 이용일: 오늘부터 N개월 뒤 같은 날(그 달에 없는 날이면 그 달 말일). 0·없으면 null(제한 없음).
+ * 예: 2026-11-24 + 6개월 → 2027-05-24, 2026-08-31 + 6개월 → 2027-02-28
+ */
+export function latestBookableDate(today: string, months: number | undefined): string | null {
+  if (!months || months <= 0) return null;
+  const [y, m, d] = today.split("-").map(Number) as [number, number, number];
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
 /** 날짜만으로 판단하는 규칙 (달력 표시에 사용) */
 export function checkDate(date: string, ctx: Omit<RuleContext, "overlaps" | "organization">): Violation | null {
   const { space } = ctx;
@@ -72,6 +88,10 @@ export function checkDate(date: string, ctx: Omit<RuleContext, "overlaps" | "org
   if (date < ctx.today) return { code: "PAST", field: "date", message: "지난 날짜는 신청할 수 없습니다." };
   if (date < ctx.paidRentalStartDate) {
     return { code: "PAID_START", field: "date", message: `온라인 대관은 ${ctx.paidRentalStartDate} 이용분부터 신청할 수 있습니다.` };
+  }
+  const latest = latestBookableDate(ctx.today, ctx.maxAdvanceMonths);
+  if (latest && date > latest) {
+    return { code: "MAX_ADVANCE", field: "date", message: `대관 신청은 오늘부터 ${ctx.maxAdvanceMonths}개월 뒤(${latest})까지의 날짜만 받습니다.` };
   }
   const closure = evaluateClosure(date, space.id, ctx.closureRules);
   if (closure.closed) return { code: "BR-01", field: "date", message: closure.rule.publicMessage };

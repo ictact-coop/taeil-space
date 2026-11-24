@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isValidBusinessNoChecksum, normalizeRegNo, validateRegNo } from "@/domain/organization/reg-no";
 import { calculatePrice } from "@/domain/pricing/calculate";
 import type { ClosureRule } from "@/domain/calendar/closures";
-import { checkBooking, checkDate, halfYearRange, type RuleContext } from "./rules";
+import { checkBooking, checkDate, halfYearRange, latestBookableDate, type RuleContext } from "./rules";
 import { hoursForDate, slotStarts, toMinutes } from "./time";
 
 describe("고유번호·사업자등록번호 (계획서 2.5)", () => {
@@ -154,6 +154,18 @@ describe("신청 규칙 (BR-01~08, AT-01~05)", () => {
   it("유료 전환일 이전·지난 날짜", () => {
     expect(checkDate("2026-10-28", base)?.code).toBe("PAST");
     expect(checkDate("2026-11-20", { ...base, paidRentalStartDate: "2026-12-01" })?.code).toBe("PAID_START");
+  });
+  it("신청 가능 기간: 오늘부터 N개월 뒤까지만, 0이면 제한 없음", () => {
+    // base.today = 2026-10-29
+    expect(latestBookableDate("2026-10-29", 6)).toBe("2027-04-29");
+    expect(latestBookableDate("2026-08-31", 6)).toBe("2027-02-28"); // 없는 날은 그 달 말일
+    expect(latestBookableDate("2026-11-24", 0)).toBeNull();
+    expect(checkDate("2027-04-29", { ...base, maxAdvanceMonths: 6 })).toBeNull();
+    const over = checkDate("2027-04-30", { ...base, maxAdvanceMonths: 6 });
+    expect(over).toMatchObject({ code: "MAX_ADVANCE", field: "date" });
+    expect(over?.message).toContain("2027-04-29");
+    expect(checkDate("2027-10-01", { ...base, maxAdvanceMonths: 0 })).toBeNull();
+    expect(codes(checkBooking({ ...ok, date: "2027-06-02" }, { ...base, maxAdvanceMonths: 6 }))).toContain("MAX_ADVANCE");
   });
 });
 
