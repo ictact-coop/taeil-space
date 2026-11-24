@@ -237,6 +237,15 @@ describe.skipIf(!hasTestDb)("단계 2 신청 흐름", () => {
     expect(sat).toMatchObject({ ok: false, violations: [{ code: "NIGHT_DISABLED" }] });
   });
 
+  it("신청 가능 기간(기본 6개월)을 넘는 날짜는 달력에서 막고 제출도 거부한다", async () => {
+    const r = await submitApplication(db, form({ date: "2027-05-04" }), {}, now); // now = 2026-10-29 → 2027-04-29까지
+    expect(r).toMatchObject({ ok: false, violations: [{ code: "MAX_ADVANCE" }] });
+    const may = await getMonthCalendar(db, seminar, "2027-05", now);
+    expect(may.find((d) => d.date === "2027-05-04")).toMatchObject({ state: "unavailable" });
+    const apr = await getMonthCalendar(db, seminar, "2027-04", now);
+    expect(apr.find((d) => d.date === "2027-04-29")?.state).not.toBe("unavailable");
+  });
+
   it("같은 단체번호로 같은 날 두 번째 신청은 막는다 (BR-03, AT-14)", async () => {
     const org = { regType: "business_no", regNo: "124-81-00998", orgName: "주식회사 예시" };
     expect(await submitApplication(db, form({ ...org, date: "2026-11-18", start: "10:00", end: "11:00" }), {}, now)).toMatchObject({ ok: true });

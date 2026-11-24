@@ -142,6 +142,15 @@ export const settingDefinitions = {
   }),
 
   // ─── D. 신청 규칙 ───
+  "application.maxAdvanceMonths": integer({
+    group: "application",
+    label: "신청 가능 기간(최대 몇 개월 뒤까지)",
+    description: "오늘부터 이 기간 안의 날짜만 신청할 수 있습니다. 예: 6이면 11월 24일에는 다음 해 5월 24일 이용분까지. 0이면 제한하지 않습니다. 이미 들어온 신청에는 영향이 없습니다.",
+    defaultValue: 6,
+    min: 0,
+    max: 36,
+    unit: "개월",
+  }),
   "application.orgRegNoRequired": boolean({
     group: "application",
     label: "고유번호·사업자등록번호 입력",

@@ -20,6 +20,7 @@ function ruleCtx(ctx: BookingContext) {
     today: ctx.today,
     nowMinutes: ctx.nowMinutes,
     paidRentalStartDate: ctx.settings["operation.paidRentalStartDate"],
+    maxAdvanceMonths: ctx.settings["application.maxAdvanceMonths"],
     hours: ctx.hours,
     space: ctx.bookingSpace,
     closureRules: ctx.closureRules,
